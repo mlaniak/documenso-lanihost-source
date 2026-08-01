@@ -170,6 +170,7 @@ export const DocumentPageViewRecentActivity = ({ documentId, userId }: DocumentP
                   className="flex-none py-0.5 text-muted-foreground text-xs leading-5 dark:text-muted-foreground/70"
                   dateTime={auditLog.createdAt.toISOString()}
                   title={i18n.date(auditLog.createdAt, DateTime.DATETIME_MED)}
+                  suppressHydrationWarning
                 >
                   {DateTime.fromJSDate(auditLog.createdAt).toRelative({ style: 'short' })}
                 </time>
