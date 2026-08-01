@@ -1,0 +1,51 @@
+name: LaniHost Documenso validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_image:
+        description: Build the production container image
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches:
+      - lanihost/**
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --global npm@11.11.0
+      - run: npm ci
+      - run: npm run prisma:generate -w @documenso/prisma
+      - run: npm test -w @documenso/lib -- --run
+      - run: npm run typecheck -w @documenso/remix
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
+  image:
+    if: github.event_name == 'workflow_dispatch' && inputs.build_image
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: documenso-lanihost:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
