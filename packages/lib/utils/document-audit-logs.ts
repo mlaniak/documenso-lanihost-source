@@ -569,11 +569,18 @@ export const formatDocumentAuditLogAction = (i18n: I18n, auditLog: TDocumentAudi
         user: msg`${user} sent an email to ${data.recipientEmail}`,
       };
     })
-    .with({ type: DOCUMENT_AUDIT_LOG_TYPE.REMINDER_SCHEDULED }, ({ data }) => ({
-      anonymous: msg`Reminder scheduled for ${data.recipientEmail}`,
-      you: msg`You scheduled a reminder for ${data.recipientEmail}`,
-      user: msg`${user} scheduled a reminder for ${data.recipientEmail}`,
-    }))
+    .with({ type: DOCUMENT_AUDIT_LOG_TYPE.REMINDER_SCHEDULED }, ({ data }) => {
+      const scheduledAt = i18n.date(new Date(data.scheduledAt), {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+
+      return {
+        anonymous: msg`Reminder scheduled for ${data.recipientEmail} at ${scheduledAt}`,
+        you: msg`You scheduled a reminder for ${data.recipientEmail} at ${scheduledAt}`,
+        user: msg`${user} scheduled a reminder for ${data.recipientEmail} at ${scheduledAt}`,
+      };
+    })
     .with({ type: DOCUMENT_AUDIT_LOG_TYPE.REMINDER_SENT }, ({ data }) => ({
       anonymous: msg`Scheduled reminder sent to ${data.recipientEmail}`,
       you: msg`Your scheduled reminder was sent to ${data.recipientEmail}`,

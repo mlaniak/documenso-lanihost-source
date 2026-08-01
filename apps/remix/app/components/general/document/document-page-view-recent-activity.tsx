@@ -6,7 +6,16 @@ import { cn } from '@documenso/ui/lib/utils';
 import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { AlertTriangle, CheckCheckIcon, CheckIcon, Loader, MailOpen } from 'lucide-react';
+import {
+  AlertTriangle,
+  CalendarClockIcon,
+  CheckCheckIcon,
+  CheckIcon,
+  CircleXIcon,
+  Loader,
+  MailCheckIcon,
+  MailOpen,
+} from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useMemo } from 'react';
 import { match } from 'ts-pattern';
@@ -25,7 +34,7 @@ export const DocumentPageViewRecentActivity = ({ documentId, userId }: DocumentP
         documentId,
         filterForRecentActivity: true,
         orderByColumn: 'createdAt',
-        orderByDirection: 'asc',
+        orderByDirection: 'desc',
         perPage: 10,
       },
       {
@@ -57,6 +66,7 @@ export const DocumentPageViewRecentActivity = ({ documentId, userId }: DocumentP
             <Trans>Unable to load document history</Trans>
           </p>
           <button
+            type="button"
             onClick={async () => refetch()}
             className="mt-2 text-foreground/70 text-sm hover:text-muted-foreground"
           >
@@ -67,7 +77,7 @@ export const DocumentPageViewRecentActivity = ({ documentId, userId }: DocumentP
 
       <AnimateGenericFadeInOut>
         {data && (
-          <ul role="list" className="space-y-6 p-4">
+          <ul className="space-y-6 p-4">
             {hasNextPage && (
               <li className="relative flex gap-x-4">
                 <div className="absolute top-0 -bottom-6 left-0 flex w-6 justify-center">
@@ -79,6 +89,7 @@ export const DocumentPageViewRecentActivity = ({ documentId, userId }: DocumentP
                 </div>
 
                 <button
+                  type="button"
                   onClick={async () => fetchNextPage()}
                   className="text-foreground/70 text-xs hover:text-muted-foreground"
                 >
@@ -128,6 +139,21 @@ export const DocumentPageViewRecentActivity = ({ documentId, userId }: DocumentP
                         <MailOpen className="h-3 w-3" aria-hidden="true" />
                       </div>
                     ))
+                    .with(DOCUMENT_AUDIT_LOG_TYPE.REMINDER_SCHEDULED, () => (
+                      <div className="rounded-full border border-blue-300 bg-widget p-1 text-blue-600 dark:border-blue-700 dark:text-blue-400">
+                        <CalendarClockIcon className="h-3 w-3" aria-hidden="true" />
+                      </div>
+                    ))
+                    .with(DOCUMENT_AUDIT_LOG_TYPE.REMINDER_SENT, () => (
+                      <div className="rounded-full border border-green-300 bg-widget p-1 text-green-600 dark:border-green-700 dark:text-green-400">
+                        <MailCheckIcon className="h-3 w-3" aria-hidden="true" />
+                      </div>
+                    ))
+                    .with(DOCUMENT_AUDIT_LOG_TYPE.REMINDER_CANCELLED, DOCUMENT_AUDIT_LOG_TYPE.REMINDER_FAILED, () => (
+                      <div className="rounded-full border border-red-300 bg-widget p-1 text-red-600 dark:border-red-700 dark:text-red-400">
+                        <CircleXIcon className="h-3 w-3" aria-hidden="true" />
+                      </div>
+                    ))
                     .otherwise(() => (
                       <div className="h-1.5 w-1.5 rounded-full bg-widget ring-1 ring-gray-300 dark:ring-neutral-600" />
                     ))}
@@ -140,7 +166,11 @@ export const DocumentPageViewRecentActivity = ({ documentId, userId }: DocumentP
                   {formatDocumentAuditLogAction(i18n, auditLog, userId).description}
                 </p>
 
-                <time className="flex-none py-0.5 text-muted-foreground text-xs leading-5 dark:text-muted-foreground/70">
+                <time
+                  className="flex-none py-0.5 text-muted-foreground text-xs leading-5 dark:text-muted-foreground/70"
+                  dateTime={auditLog.createdAt.toISOString()}
+                  title={i18n.date(auditLog.createdAt, DateTime.DATETIME_MED)}
+                >
                   {DateTime.fromJSDate(auditLog.createdAt).toRelative({ style: 'short' })}
                 </time>
               </li>

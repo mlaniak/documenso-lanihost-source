@@ -70,6 +70,10 @@ export const findDocumentAuditLogs = async ({
             DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_RECIPIENT_REJECTED,
             DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_SENT,
             DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_MOVED_TO_TEAM,
+            DOCUMENT_AUDIT_LOG_TYPE.REMINDER_SCHEDULED,
+            DOCUMENT_AUDIT_LOG_TYPE.REMINDER_SENT,
+            DOCUMENT_AUDIT_LOG_TYPE.REMINDER_CANCELLED,
+            DOCUMENT_AUDIT_LOG_TYPE.REMINDER_FAILED,
           ],
         },
       },
@@ -86,7 +90,7 @@ export const findDocumentAuditLogs = async ({
   const [data, count] = await Promise.all([
     prisma.documentAuditLog.findMany({
       where: whereClause,
-      skip: Math.max(page - 1, 0) * perPage,
+      skip: cursor ? 1 : Math.max(page - 1, 0) * perPage,
       take: perPage + 1,
       orderBy: {
         [orderByColumn]: orderByDirection,
@@ -104,7 +108,7 @@ export const findDocumentAuditLogs = async ({
 
   if (parsedData.length > perPage) {
     const nextItem = parsedData.pop();
-    nextCursor = nextItem!.id;
+    nextCursor = nextItem?.id;
   }
 
   return {

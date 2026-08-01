@@ -4,6 +4,7 @@ import { isDocumentCompleted } from '@documenso/lib/utils/document';
 import { formatSigningLink, isRecipientExpired } from '@documenso/lib/utils/recipients';
 import { CopyTextButton } from '@documenso/ui/components/common/copy-text-button';
 import { SignatureIcon } from '@documenso/ui/icons/signature';
+import { cn } from '@documenso/ui/lib/utils';
 import { AvatarWithText } from '@documenso/ui/primitives/avatar';
 import { Badge } from '@documenso/ui/primitives/badge';
 import { PopoverHover } from '@documenso/ui/primitives/popover';
@@ -12,17 +13,22 @@ import { useToast } from '@documenso/ui/primitives/use-toast';
 import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { DocumentStatus, RecipientRole, SigningStatus } from '@prisma/client';
+import { DocumentStatus, RecipientRole, ScheduledReminderDeliveryStatus, SigningStatus } from '@prisma/client';
 import { TooltipArrow } from '@radix-ui/react-tooltip';
 import {
   AlertTriangle,
+  CalendarClockIcon,
   CheckIcon,
+  CircleAlertIcon,
   Clock,
   Clock8Icon,
+  Loader2Icon,
+  MailCheckIcon,
   MailIcon,
   MailOpenIcon,
   PenIcon,
   PlusIcon,
+  RotateCwIcon,
   UserIcon,
 } from 'lucide-react';
 import { DateTime } from 'luxon';
@@ -36,7 +42,7 @@ export type DocumentPageViewRecipientsProps = {
 };
 
 export const DocumentPageViewRecipients = ({ envelope, documentRootPath }: DocumentPageViewRecipientsProps) => {
-  const { _, i18n } = useLingui();
+  const { _ } = useLingui();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -151,28 +157,7 @@ export const DocumentPageViewRecipients = ({ envelope, documentRootPath }: Docum
 
               {envelope.status !== DocumentStatus.DRAFT &&
                 recipient.signingStatus === SigningStatus.NOT_SIGNED &&
-                !isRecipientExpired(recipient) &&
-                (recipient.expiresAt ? (
-                  <PopoverHover
-                    trigger={
-                      <Badge variant="secondary">
-                        <Clock className="mr-1 h-3 w-3" />
-                        <Trans>Pending</Trans>
-                      </Badge>
-                    }
-                  >
-                    <p className="text-muted-foreground text-xs">
-                      <Trans>
-                        Expires {recipient.expiresAt ? i18n.date(recipient.expiresAt, DateTime.DATETIME_MED) : 'N/A'}
-                      </Trans>
-                    </p>
-                  </PopoverHover>
-                ) : (
-                  <Badge variant="secondary">
-                    <Clock className="mr-1 h-3 w-3" />
-                    <Trans>Pending</Trans>
-                  </Badge>
-                ))}
+                !isRecipientExpired(recipient) && <PendingRecipientStatus recipient={recipient} />}
 
               {envelope.status !== DocumentStatus.DRAFT && recipient.signingStatus === SigningStatus.REJECTED && (
                 <PopoverHover
@@ -198,10 +183,7 @@ export const DocumentPageViewRecipients = ({ envelope, documentRootPath }: Docum
                   <TooltipProvider>
                     <Tooltip open={shouldHighlightCopyButtons && i === 0}>
                       <TooltipTrigger asChild>
-                        <div
-                          className={shouldHighlightCopyButtons ? 'animate-pulse' : ''}
-                          onClick={() => setShouldHighlightCopyButtons(false)}
-                        >
+                        <div className={shouldHighlightCopyButtons ? 'animate-pulse' : ''}>
                           <CopyTextButton
                             value={formatSigningLink(recipient.token)}
                             onCopySuccess={() => {
@@ -226,5 +208,145 @@ export const DocumentPageViewRecipients = ({ envelope, documentRootPath }: Docum
         ))}
       </ul>
     </section>
+  );
+};
+
+type PendingRecipientStatusProps = {
+  recipient: TEnvelope['recipients'][number];
+};
+
+const PendingRecipientStatus = ({ recipient }: PendingRecipientStatusProps) => {
+  const { i18n } = useLingui();
+  const latestDelivery = recipient.scheduledReminderDeliveries?.[0];
+  const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const activeScheduledAt =
+    recipient.scheduledReminderAt ??
+    (latestDelivery?.status === ScheduledReminderDeliveryStatus.PENDING ||
+    latestDelivery?.status === ScheduledReminderDeliveryStatus.PROCESSING
+      ? latestDelivery.scheduledAt
+      : null);
+
+  const isFailed = latestDelivery?.status === ScheduledReminderDeliveryStatus.FAILED;
+  const isProcessing = latestDelivery?.status === ScheduledReminderDeliveryStatus.PROCESSING;
+  const isSent = latestDelivery?.status === ScheduledReminderDeliveryStatus.SENT;
+  const isRetrying =
+    latestDelivery?.status === ScheduledReminderDeliveryStatus.PENDING && latestDelivery.attemptCount > 0;
+  const isScheduled = Boolean(activeScheduledAt) && !isProcessing && !isRetrying;
+
+  const ReminderIcon = isFailed
+    ? CircleAlertIcon
+    : isProcessing
+      ? Loader2Icon
+      : isRetrying
+        ? RotateCwIcon
+        : isSent
+          ? MailCheckIcon
+          : isScheduled
+            ? CalendarClockIcon
+            : Clock;
+
+  return (
+    <PopoverHover
+      contentProps={{ align: 'end' }}
+      trigger={
+        <Badge variant={isFailed ? 'destructive' : 'secondary'}>
+          <ReminderIcon className={cn('mr-1 h-3 w-3', { 'animate-spin': isProcessing })} />
+          <Trans>Pending</Trans>
+          {isScheduled && (
+            <>
+              <span className="mx-1">·</span>
+              <Trans>Reminder scheduled</Trans>
+            </>
+          )}
+          {isProcessing && (
+            <>
+              <span className="mx-1">·</span>
+              <Trans>Sending reminder</Trans>
+            </>
+          )}
+          {isRetrying && (
+            <>
+              <span className="mx-1">·</span>
+              <Trans>Retry queued</Trans>
+            </>
+          )}
+          {isSent && (
+            <>
+              <span className="mx-1">·</span>
+              <Trans>Reminder sent</Trans>
+            </>
+          )}
+          {isFailed && (
+            <>
+              <span className="mx-1">·</span>
+              <Trans>Reminder failed</Trans>
+            </>
+          )}
+        </Badge>
+      }
+    >
+      <div className="space-y-2 text-xs">
+        <div>
+          <p className="font-medium text-foreground">
+            <Trans>Waiting for recipient action</Trans>
+          </p>
+          <p className="text-muted-foreground">{localTimeZone}</p>
+        </div>
+
+        {activeScheduledAt && (latestDelivery?.attemptCount ?? 0) === 0 && (
+          <p className="text-muted-foreground">
+            <Trans>Reminder scheduled for {i18n.date(activeScheduledAt, DateTime.DATETIME_MED)}.</Trans>
+          </p>
+        )}
+
+        {latestDelivery?.status === ScheduledReminderDeliveryStatus.PENDING && latestDelivery.attemptCount > 0 && (
+          <p className="text-muted-foreground">
+            <Trans>
+              Retry {latestDelivery.attemptCount + 1} is queued for{' '}
+              {i18n.date(latestDelivery.nextAttemptAt, DateTime.DATETIME_MED)}.
+            </Trans>
+          </p>
+        )}
+
+        {isProcessing && (
+          <p className="text-muted-foreground">
+            <Trans>The reminder is being delivered now.</Trans>
+          </p>
+        )}
+
+        {isSent && latestDelivery.sentAt && (
+          <p className="text-muted-foreground">
+            <Trans>Reminder sent {i18n.date(latestDelivery.sentAt, DateTime.DATETIME_MED)}.</Trans>
+          </p>
+        )}
+
+        {isFailed && (
+          <p className="text-destructive">
+            <Trans>Reminder failed after {latestDelivery.attemptCount} attempts.</Trans>
+            {latestDelivery.lastErrorCode ? ` (${latestDelivery.lastErrorCode})` : ''}
+          </p>
+        )}
+
+        {latestDelivery?.status === ScheduledReminderDeliveryStatus.CANCELLED && latestDelivery.cancelledAt && (
+          <p className="text-muted-foreground">
+            <Trans>
+              The last reminder was cancelled {i18n.date(latestDelivery.cancelledAt, DateTime.DATETIME_MED)}.
+            </Trans>
+          </p>
+        )}
+
+        {!activeScheduledAt && !latestDelivery && (
+          <p className="text-muted-foreground">
+            <Trans>No reminder is currently scheduled.</Trans>
+          </p>
+        )}
+
+        {recipient.expiresAt && (
+          <p className="border-border/60 border-t pt-2 text-muted-foreground">
+            <Trans>Expires {i18n.date(recipient.expiresAt, DateTime.DATETIME_MED)}</Trans>
+          </p>
+        )}
+      </div>
+    </PopoverHover>
   );
 };

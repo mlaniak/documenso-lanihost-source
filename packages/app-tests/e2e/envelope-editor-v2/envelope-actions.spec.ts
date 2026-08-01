@@ -272,6 +272,56 @@ test.describe('document editor', () => {
     expect((auditLog!.data as Record<string, unknown>).recipientEmail).toBe(recipientEmail);
   });
 
+  test('scheduled reminder requires a recipient and appears in document activity', async ({ page }) => {
+    const { user, team, envelopeId, recipientEmail } = await createPendingEnvelopeViaApi();
+
+    await apiSignin({
+      page,
+      email: user.email,
+      redirectPath: `/t/${team.url}/documents/${envelopeId}/edit`,
+    });
+
+    await page.locator('button[title="Resend Envelope"]').click();
+    await expect(page.getByRole('heading', { name: 'Resend Document' })).toBeVisible();
+
+    await page.getByRole('radio', { name: 'Schedule for later' }).click();
+
+    const scheduledAt = new Date(Date.now() + 60 * 60 * 1000);
+    scheduledAt.setMinutes(scheduledAt.getMinutes() - scheduledAt.getTimezoneOffset());
+    const scheduledAtInput = scheduledAt.toISOString().slice(0, 16);
+
+    await page.getByLabel('Reminder date and time').fill(scheduledAtInput);
+    await page.getByRole('button', { name: 'Schedule reminder' }).click();
+
+    await expect(page.getByText('You must select at least one item')).toBeVisible();
+
+    await page.getByRole('checkbox').first().click();
+    await page.getByRole('button', { name: 'Schedule reminder' }).click();
+
+    await expectToastTextToBeVisible(page, 'Reminder scheduled');
+
+    const delivery = await prisma.scheduledReminderDelivery.findFirst({
+      where: { envelopeId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    expect(delivery).not.toBeNull();
+    expect(delivery?.status).toBe('PENDING');
+    expect(delivery?.recipientId).toBeDefined();
+
+    const auditLog = await prisma.documentAuditLog.findFirst({
+      where: { envelopeId, type: 'REMINDER_SCHEDULED' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    expect(auditLog).not.toBeNull();
+
+    await page.goto(`/t/${team.url}/documents/${envelopeId}`);
+
+    await expect(page.getByText('Pending · Reminder scheduled')).toBeVisible();
+    await expect(page.getByText(`You scheduled a reminder for ${recipientEmail}`, { exact: false })).toBeVisible();
+  });
+
   test('duplicate document', async ({ page }) => {
     const surface = await openDocumentEnvelopeEditor(page);
 

@@ -102,6 +102,7 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
   const refreshReminderData = async () => {
     await Promise.allSettled([
       trpcUtils.document.findDocumentsInternal.invalidate(),
+      trpcUtils.document.auditLog.find.invalidate(),
       trpcUtils.envelope.get.invalidate(),
     ]);
   };
@@ -237,72 +238,80 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
                 control={form.control}
                 name="recipients"
                 render={({ field: { value, onChange } }) => (
-                  <>
-                    {recipients
-                      .filter((recipient) => recipient.signingStatus === SigningStatus.NOT_SIGNED)
-                      .map((recipient) => {
-                        const scheduledReminderAt = scheduledReminderDates[recipient.id];
+                  <FormItem>
+                    <p className="px-3 text-muted-foreground text-xs">
+                      <Trans>Select each recipient who should receive this reminder.</Trans>
+                    </p>
 
-                        return (
-                          <FormItem
-                            key={recipient.id}
-                            className="flex flex-row items-center justify-between gap-x-3 px-3"
-                          >
-                            <div className="my-2 min-w-0">
-                              <FormLabel
-                                className={cn('flex items-center gap-2 font-normal', {
-                                  'opacity-50': !value.includes(recipient.id),
-                                })}
-                              >
-                                <StackAvatar
-                                  key={recipient.id}
-                                  type={getRecipientType(recipient)}
-                                  fallbackText={recipientAbbreviation(recipient)}
+                    <div>
+                      {recipients
+                        .filter((recipient) => recipient.signingStatus === SigningStatus.NOT_SIGNED)
+                        .map((recipient) => {
+                          const scheduledReminderAt = scheduledReminderDates[recipient.id];
+
+                          return (
+                            <FormItem
+                              key={recipient.id}
+                              className="flex flex-row items-center justify-between gap-x-3 px-3"
+                            >
+                              <div className="my-2 min-w-0">
+                                <FormLabel
+                                  className={cn('flex items-center gap-2 font-normal', {
+                                    'opacity-50': !value.includes(recipient.id),
+                                  })}
+                                >
+                                  <StackAvatar
+                                    key={recipient.id}
+                                    type={getRecipientType(recipient)}
+                                    fallbackText={recipientAbbreviation(recipient)}
+                                  />
+                                  <span className="truncate">{recipient.email}</span>
+                                </FormLabel>
+
+                                {scheduledReminderAt && (
+                                  <div className="mt-1 ml-10 flex items-center gap-1.5 text-muted-foreground text-xs">
+                                    <CalendarClockIcon className="h-3.5 w-3.5" />
+                                    <span>
+                                      {new Intl.DateTimeFormat(undefined, {
+                                        dateStyle: 'medium',
+                                        timeStyle: 'short',
+                                      }).format(scheduledReminderAt)}
+                                      {` (${localTimeZone})`}
+                                    </span>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-1.5"
+                                      disabled={isUpdatingReminderSchedule}
+                                      onClick={() => void onCancelScheduledReminder(recipient.id)}
+                                    >
+                                      <XIcon className="mr-1 h-3 w-3" />
+                                      <Trans>Cancel schedule</Trans>
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+
+                              <FormControl>
+                                <Checkbox
+                                  className="h-5 w-5"
+                                  value={recipient.id}
+                                  checked={value.includes(recipient.id)}
+                                  onCheckedChange={(checked: boolean) =>
+                                    checked
+                                      ? onChange([...value, recipient.id])
+                                      : onChange(value.filter((v) => v !== recipient.id))
+                                  }
                                 />
-                                <span className="truncate">{recipient.email}</span>
-                              </FormLabel>
+                              </FormControl>
+                            </FormItem>
+                          );
+                        })}
+                    </div>
 
-                              {scheduledReminderAt && (
-                                <div className="mt-1 ml-10 flex items-center gap-1.5 text-muted-foreground text-xs">
-                                  <CalendarClockIcon className="h-3.5 w-3.5" />
-                                  <span>
-                                    {new Intl.DateTimeFormat(undefined, {
-                                      dateStyle: 'medium',
-                                      timeStyle: 'short',
-                                    }).format(scheduledReminderAt)}
-                                    {` (${localTimeZone})`}
-                                  </span>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 px-1.5"
-                                    disabled={isUpdatingReminderSchedule}
-                                    onClick={() => void onCancelScheduledReminder(recipient.id)}
-                                  >
-                                    <XIcon className="mr-1 h-3 w-3" />
-                                    <Trans>Cancel schedule</Trans>
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-
-                            <FormControl>
-                              <Checkbox
-                                className="h-5 w-5 rounded-full"
-                                value={recipient.id}
-                                checked={value.includes(recipient.id)}
-                                onCheckedChange={(checked: boolean) =>
-                                  checked
-                                    ? onChange([...value, recipient.id])
-                                    : onChange(value.filter((v) => v !== recipient.id))
-                                }
-                              />
-                            </FormControl>
-                          </FormItem>
-                        );
-                      })}
-                  </>
+                    <FormMessage className="px-3" aria-live="polite" />
+                  </FormItem>
                 )}
               />
 

@@ -57,6 +57,24 @@ export const getEnvelopeById = async ({ id, userId, teamId, type }: GetEnvelopeB
         },
       },
       recipients: {
+        include: {
+          scheduledReminderDeliveries: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              status: true,
+              scheduledAt: true,
+              nextAttemptAt: true,
+              attemptCount: true,
+              sentAt: true,
+              failedAt: true,
+              cancelledAt: true,
+              lastErrorCode: true,
+              lastErrorMessage: true,
+            },
+          },
+        },
         orderBy: {
           id: 'asc',
         },
