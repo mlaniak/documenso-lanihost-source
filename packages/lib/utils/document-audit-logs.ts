@@ -596,6 +596,26 @@ export const formatDocumentAuditLogAction = (i18n: I18n, auditLog: TDocumentAudi
       you: msg`Your scheduled reminder failed for ${data.recipientEmail}`,
       user: msg`${user}'s scheduled reminder failed for ${data.recipientEmail}`,
     }))
+    .with({ type: DOCUMENT_AUDIT_LOG_TYPE.REMINDER_DELIVERY_DELAYED }, ({ data }) => ({
+      anonymous: msg`Scheduled reminder delivery was delayed for ${data.recipientEmail}`,
+      you: msg`Delivery of your scheduled reminder was delayed for ${data.recipientEmail}`,
+      user: msg`Delivery of ${user}'s scheduled reminder was delayed for ${data.recipientEmail}`,
+    }))
+    .with({ type: DOCUMENT_AUDIT_LOG_TYPE.REMINDER_DELIVERED }, ({ data }) => ({
+      anonymous: msg`Scheduled reminder delivered to ${data.recipientEmail}`,
+      you: msg`Your scheduled reminder was delivered to ${data.recipientEmail}`,
+      user: msg`${user}'s scheduled reminder was delivered to ${data.recipientEmail}`,
+    }))
+    .with({ type: DOCUMENT_AUDIT_LOG_TYPE.REMINDER_BOUNCED }, ({ data }) => ({
+      anonymous: msg`Scheduled reminder bounced for ${data.recipientEmail}`,
+      you: msg`Your scheduled reminder bounced for ${data.recipientEmail}`,
+      user: msg`${user}'s scheduled reminder bounced for ${data.recipientEmail}`,
+    }))
+    .with({ type: DOCUMENT_AUDIT_LOG_TYPE.REMINDER_DELIVERY_FAILED }, ({ data }) => ({
+      anonymous: msg`Scheduled reminder delivery failed for ${data.recipientEmail}`,
+      you: msg`Delivery of your scheduled reminder failed for ${data.recipientEmail}`,
+      user: msg`Delivery of ${user}'s scheduled reminder failed for ${data.recipientEmail}`,
+    }))
     .with({ type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_COMPLETED }, () => ({
       anonymous: msg({ message: `Document completed`, context: `Audit log format` }),
       you: msg({ message: `Document completed`, context: `Audit log format` }),

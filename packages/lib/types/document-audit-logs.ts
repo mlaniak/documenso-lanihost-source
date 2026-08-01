@@ -17,6 +17,10 @@ export const ZDocumentAuditLogTypeSchema = z.enum([
   'REMINDER_SENT',
   'REMINDER_CANCELLED',
   'REMINDER_FAILED',
+  'REMINDER_DELIVERY_DELAYED',
+  'REMINDER_DELIVERED',
+  'REMINDER_BOUNCED',
+  'REMINDER_DELIVERY_FAILED',
 
   // Document modification events.
   'FIELD_CREATED',
@@ -283,6 +287,34 @@ export const ZDocumentAuditLogEventReminderFailedSchema = z.object({
     attemptCount: z.number().int().positive(),
     errorCode: z.string(),
     errorMessage: z.string(),
+  }),
+});
+
+const ZScheduledReminderProviderAuditDataSchema = ZScheduledReminderAuditDataSchema.extend({
+  providerEventAt: z.string().datetime(),
+});
+
+export const ZDocumentAuditLogEventReminderDeliveryDelayedSchema = z.object({
+  type: z.literal(DOCUMENT_AUDIT_LOG_TYPE.REMINDER_DELIVERY_DELAYED),
+  data: ZScheduledReminderProviderAuditDataSchema,
+});
+
+export const ZDocumentAuditLogEventReminderDeliveredSchema = z.object({
+  type: z.literal(DOCUMENT_AUDIT_LOG_TYPE.REMINDER_DELIVERED),
+  data: ZScheduledReminderProviderAuditDataSchema,
+});
+
+export const ZDocumentAuditLogEventReminderBouncedSchema = z.object({
+  type: z.literal(DOCUMENT_AUDIT_LOG_TYPE.REMINDER_BOUNCED),
+  data: ZScheduledReminderProviderAuditDataSchema.extend({
+    providerFailureCode: z.string().optional(),
+  }),
+});
+
+export const ZDocumentAuditLogEventReminderDeliveryFailedSchema = z.object({
+  type: z.literal(DOCUMENT_AUDIT_LOG_TYPE.REMINDER_DELIVERY_FAILED),
+  data: ZScheduledReminderProviderAuditDataSchema.extend({
+    providerFailureCode: z.string().optional(),
   }),
 });
 
@@ -874,6 +906,10 @@ export const ZDocumentAuditLogSchema = ZDocumentAuditLogBaseSchema.and(
     ZDocumentAuditLogEventReminderSentSchema,
     ZDocumentAuditLogEventReminderCancelledSchema,
     ZDocumentAuditLogEventReminderFailedSchema,
+    ZDocumentAuditLogEventReminderDeliveryDelayedSchema,
+    ZDocumentAuditLogEventReminderDeliveredSchema,
+    ZDocumentAuditLogEventReminderBouncedSchema,
+    ZDocumentAuditLogEventReminderDeliveryFailedSchema,
     ZDocumentAuditLogEventDocumentCompletedSchema,
     ZDocumentAuditLogEventDocumentCreatedSchema,
     ZDocumentAuditLogEventDocumentDeletedSchema,

@@ -13,7 +13,13 @@ import { useToast } from '@documenso/ui/primitives/use-toast';
 import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { DocumentStatus, RecipientRole, ScheduledReminderDeliveryStatus, SigningStatus } from '@prisma/client';
+import {
+  DocumentStatus,
+  RecipientRole,
+  ScheduledReminderDeliveryStatus,
+  ScheduledReminderProviderStatus,
+  SigningStatus,
+} from '@prisma/client';
 import { TooltipArrow } from '@radix-ui/react-tooltip';
 import {
   AlertTriangle,
@@ -229,27 +235,36 @@ const PendingRecipientStatus = ({ recipient }: PendingRecipientStatusProps) => {
   const isFailed = latestDelivery?.status === ScheduledReminderDeliveryStatus.FAILED;
   const isProcessing = latestDelivery?.status === ScheduledReminderDeliveryStatus.PROCESSING;
   const isSent = latestDelivery?.status === ScheduledReminderDeliveryStatus.SENT;
+  const isProviderDelivered = latestDelivery?.providerStatus === ScheduledReminderProviderStatus.DELIVERED;
+  const isProviderDelayed = latestDelivery?.providerStatus === ScheduledReminderProviderStatus.DELAYED;
+  const isProviderFailed =
+    latestDelivery?.providerStatus === ScheduledReminderProviderStatus.BOUNCED ||
+    latestDelivery?.providerStatus === ScheduledReminderProviderStatus.FAILED ||
+    latestDelivery?.providerStatus === ScheduledReminderProviderStatus.SUPPRESSED;
   const isRetrying =
     latestDelivery?.status === ScheduledReminderDeliveryStatus.PENDING && latestDelivery.attemptCount > 0;
   const isScheduled = Boolean(activeScheduledAt) && !isProcessing && !isRetrying;
 
-  const ReminderIcon = isFailed
-    ? CircleAlertIcon
-    : isProcessing
-      ? Loader2Icon
-      : isRetrying
-        ? RotateCwIcon
-        : isSent
-          ? MailCheckIcon
-          : isScheduled
-            ? CalendarClockIcon
-            : Clock;
+  const ReminderIcon =
+    isFailed || isProviderFailed
+      ? CircleAlertIcon
+      : isProviderDelayed
+        ? Clock8Icon
+        : isProcessing
+          ? Loader2Icon
+          : isRetrying
+            ? RotateCwIcon
+            : isProviderDelivered || isSent
+              ? MailCheckIcon
+              : isScheduled
+                ? CalendarClockIcon
+                : Clock;
 
   return (
     <PopoverHover
       contentProps={{ align: 'end' }}
       trigger={
-        <Badge variant={isFailed ? 'destructive' : 'secondary'}>
+        <Badge variant={isFailed || isProviderFailed ? 'destructive' : 'secondary'}>
           <ReminderIcon className={cn('mr-1 h-3 w-3', { 'animate-spin': isProcessing })} />
           <Trans>Pending</Trans>
           {isScheduled && (
@@ -270,7 +285,25 @@ const PendingRecipientStatus = ({ recipient }: PendingRecipientStatusProps) => {
               <Trans>Retry queued</Trans>
             </>
           )}
-          {isSent && (
+          {isProviderDelivered && (
+            <>
+              <span className="mx-1">·</span>
+              <Trans>Reminder delivered</Trans>
+            </>
+          )}
+          {isProviderDelayed && (
+            <>
+              <span className="mx-1">·</span>
+              <Trans>Delivery delayed</Trans>
+            </>
+          )}
+          {isProviderFailed && (
+            <>
+              <span className="mx-1">·</span>
+              <Trans>Delivery failed</Trans>
+            </>
+          )}
+          {isSent && !isProviderDelivered && !isProviderDelayed && !isProviderFailed && (
             <>
               <span className="mx-1">·</span>
               <Trans>Reminder sent</Trans>
@@ -314,9 +347,40 @@ const PendingRecipientStatus = ({ recipient }: PendingRecipientStatusProps) => {
           </p>
         )}
 
-        {isSent && latestDelivery.sentAt && (
+        {isSent && latestDelivery.sentAt && !isProviderDelivered && !isProviderDelayed && !isProviderFailed && (
           <p className="text-muted-foreground">
             <Trans>Reminder sent {i18n.date(latestDelivery.sentAt, DateTime.DATETIME_MED)}.</Trans>
+            {latestDelivery.providerStatus === ScheduledReminderProviderStatus.SUBMITTED && (
+              <Trans> Awaiting delivery confirmation.</Trans>
+            )}
+          </p>
+        )}
+
+        {isProviderDelivered && latestDelivery.providerDeliveredAt && (
+          <p className="text-green-700 dark:text-green-400">
+            <Trans>
+              Delivered to the recipient's mail server{' '}
+              {i18n.date(latestDelivery.providerDeliveredAt, DateTime.DATETIME_MED)}.
+            </Trans>
+          </p>
+        )}
+
+        {isProviderDelayed && latestDelivery.providerDelayedAt && (
+          <p className="text-amber-700 dark:text-amber-400">
+            <Trans>
+              The recipient's mail server delayed delivery{' '}
+              {i18n.date(latestDelivery.providerDelayedAt, DateTime.DATETIME_MED)}.
+            </Trans>
+          </p>
+        )}
+
+        {isProviderFailed && latestDelivery.providerFailedAt && (
+          <p className="text-destructive">
+            <Trans>
+              The email provider reported a delivery failure{' '}
+              {i18n.date(latestDelivery.providerFailedAt, DateTime.DATETIME_MED)}.
+            </Trans>
+            {latestDelivery.providerFailureCode ? ` (${latestDelivery.providerFailureCode})` : ''}
           </p>
         )}
 

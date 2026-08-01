@@ -1,12 +1,21 @@
 import {
   getScheduledReminderErrorDetails,
+  getScheduledReminderIdempotencyKey,
+  getScheduledReminderMessageId,
   getScheduledReminderRetryAt,
   MAX_SCHEDULED_REMINDER_DELIVERY_ATTEMPTS,
 } from '@documenso/lib/constants/scheduled-reminder-delivery';
 import { prisma } from '@documenso/prisma';
 import type { Envelope, Recipient, ScheduledReminderDelivery, User } from '@prisma/client';
-import { DocumentStatus, RecipientRole, ScheduledReminderDeliveryStatus, SigningStatus } from '@prisma/client';
+import {
+  DocumentStatus,
+  RecipientRole,
+  ScheduledReminderDeliveryStatus,
+  ScheduledReminderProviderStatus,
+  SigningStatus,
+} from '@prisma/client';
 
+import { NEXT_PUBLIC_WEBAPP_URL } from '../../../constants/app';
 import { resendDocument } from '../../../server-only/document/resend-document';
 import { updateRecipientNextReminder } from '../../../server-only/recipient/update-recipient-next-reminder';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '../../../types/document-audit-logs';
@@ -82,6 +91,13 @@ export const processScheduledReminderDelivery = async (options: { deliveryId: st
     return;
   }
 
+  const providerMessageId = getScheduledReminderMessageId(delivery.id, NEXT_PUBLIC_WEBAPP_URL());
+
+  await prisma.scheduledReminderDelivery.update({
+    where: { id: delivery.id },
+    data: { providerMessageId },
+  });
+
   try {
     await resendDocument({
       id: { type: 'envelopeId', id: delivery.envelopeId },
@@ -89,6 +105,10 @@ export const processScheduledReminderDelivery = async (options: { deliveryId: st
       teamId: delivery.envelope.teamId,
       recipients: [delivery.recipientId],
       requireEmailDelivery: true,
+      emailDeliveryTracking: {
+        messageId: providerMessageId,
+        idempotencyKey: getScheduledReminderIdempotencyKey(delivery.id),
+      },
       requestMetadata: {
         source: 'app',
         auth: 'session',
@@ -109,6 +129,18 @@ export const processScheduledReminderDelivery = async (options: { deliveryId: st
           status: ScheduledReminderDeliveryStatus.SENT,
           sentAt,
           claimedAt: null,
+        },
+      });
+
+      await tx.scheduledReminderDelivery.updateMany({
+        where: {
+          id: delivery.id,
+          providerStatus: null,
+        },
+        data: {
+          providerStatus: ScheduledReminderProviderStatus.SUBMITTED,
+          providerStatusAt: sentAt,
+          providerSubmittedAt: sentAt,
         },
       });
 

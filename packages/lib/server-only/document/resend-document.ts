@@ -42,6 +42,10 @@ export type ResendDocumentOptions = {
   teamId: number;
   requestMetadata: ApiRequestMetadata;
   requireEmailDelivery?: boolean;
+  emailDeliveryTracking?: {
+    messageId: string;
+    idempotencyKey: string;
+  };
 };
 
 export const resendDocument = async ({
@@ -51,6 +55,7 @@ export const resendDocument = async ({
   teamId,
   requestMetadata,
   requireEmailDelivery = false,
+  emailDeliveryTracking,
 }: ResendDocumentOptions) => {
   const user = await prisma.user.findFirstOrThrow({
     where: {
@@ -140,6 +145,13 @@ export const resendDocument = async ({
     throw new AppError(AppErrorCode.INVALID_REQUEST, {
       message: 'The scheduled reminder recipient is no longer eligible',
       statusCode: 409,
+    });
+  }
+
+  if (emailDeliveryTracking && recipientsToRemind.length !== 1) {
+    throw new AppError(AppErrorCode.INVALID_REQUEST, {
+      message: 'Tracked reminder delivery requires exactly one recipient',
+      statusCode: 400,
     });
   }
 
@@ -321,11 +333,15 @@ export const resendDocument = async ({
           : emailSubject,
         html,
         text,
-        headers: buildEnvelopeEmailHeaders({
-          userId: envelope.userId,
-          envelopeId: envelope.id,
-          teamId: envelope.teamId,
-        }),
+        messageId: emailDeliveryTracking?.messageId,
+        headers: {
+          ...buildEnvelopeEmailHeaders({
+            userId: envelope.userId,
+            envelopeId: envelope.id,
+            teamId: envelope.teamId,
+          }),
+          ...(emailDeliveryTracking ? { 'Resend-Idempotency-Key': emailDeliveryTracking.idempotencyKey } : {}),
+        },
       });
 
       // Mark the recipient as sent if they were not already sent.

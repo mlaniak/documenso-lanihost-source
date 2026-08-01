@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@documenso/ui/primitive
 import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { ScheduledReminderDeliveryStatus } from '@prisma/client';
+import { ScheduledReminderDeliveryStatus, ScheduledReminderProviderStatus } from '@prisma/client';
 import { AlertCircleIcon, CalendarClockIcon, CheckCircle2Icon, Loader, Loader2Icon } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useMemo, useTransition } from 'react';
@@ -235,6 +235,11 @@ const ScheduledReminderStatus = ({ recipients }: ScheduledReminderStatusProps) =
           attemptCount: latestDelivery?.attemptCount ?? 0,
           sentAt: latestDelivery?.sentAt ?? null,
           errorCode: latestDelivery?.lastErrorCode ?? null,
+          providerStatus: latestDelivery?.providerStatus ?? null,
+          providerDeliveredAt: latestDelivery?.providerDeliveredAt ?? null,
+          providerDelayedAt: latestDelivery?.providerDelayedAt ?? null,
+          providerFailedAt: latestDelivery?.providerFailedAt ?? null,
+          providerFailureCode: latestDelivery?.providerFailureCode ?? null,
         },
       ];
     }
@@ -253,6 +258,11 @@ const ScheduledReminderStatus = ({ recipients }: ScheduledReminderStatusProps) =
           attemptCount: latestDelivery.attemptCount,
           sentAt: latestDelivery.sentAt,
           errorCode: latestDelivery.lastErrorCode,
+          providerStatus: latestDelivery.providerStatus,
+          providerDeliveredAt: latestDelivery.providerDeliveredAt,
+          providerDelayedAt: latestDelivery.providerDelayedAt,
+          providerFailedAt: latestDelivery.providerFailedAt,
+          providerFailureCode: latestDelivery.providerFailureCode,
         },
       ];
     }
@@ -265,26 +275,46 @@ const ScheduledReminderStatus = ({ recipients }: ScheduledReminderStatusProps) =
   }
 
   const hasFailure = reminderActivity.some((item) => item.status === ScheduledReminderDeliveryStatus.FAILED);
+  const hasProviderFailure = reminderActivity.some(
+    (item) =>
+      item.providerStatus === ScheduledReminderProviderStatus.BOUNCED ||
+      item.providerStatus === ScheduledReminderProviderStatus.FAILED ||
+      item.providerStatus === ScheduledReminderProviderStatus.SUPPRESSED,
+  );
+  const hasProviderDelay = reminderActivity.some(
+    (item) => item.providerStatus === ScheduledReminderProviderStatus.DELAYED,
+  );
   const isSending = reminderActivity.some((item) => item.status === ScheduledReminderDeliveryStatus.PROCESSING);
   const isSent = reminderActivity.every((item) => item.status === ScheduledReminderDeliveryStatus.SENT);
+  const isDelivered = reminderActivity.every(
+    (item) => item.providerStatus === ScheduledReminderProviderStatus.DELIVERED,
+  );
 
-  const statusLabel = hasFailure
-    ? _(msg`Reminder failed`)
-    : isSending
-      ? _(msg`Sending reminder`)
-      : isSent
-        ? _(msg`Reminder sent`)
-        : reminderActivity.length === 1
-          ? _(msg`Reminder scheduled`)
-          : _(msg`Reminders scheduled`);
+  const statusLabel =
+    hasFailure || hasProviderFailure
+      ? _(msg`Reminder failed`)
+      : hasProviderDelay
+        ? _(msg`Delivery delayed`)
+        : isSending
+          ? _(msg`Sending reminder`)
+          : isDelivered
+            ? _(msg`Reminder delivered`)
+            : isSent
+              ? _(msg`Reminder sent`)
+              : reminderActivity.length === 1
+                ? _(msg`Reminder scheduled`)
+                : _(msg`Reminders scheduled`);
 
-  const StatusIcon = hasFailure
-    ? AlertCircleIcon
-    : isSending
-      ? Loader2Icon
-      : isSent
-        ? CheckCircle2Icon
-        : CalendarClockIcon;
+  const StatusIcon =
+    hasFailure || hasProviderFailure
+      ? AlertCircleIcon
+      : hasProviderDelay
+        ? CalendarClockIcon
+        : isSending
+          ? Loader2Icon
+          : isDelivered || isSent
+            ? CheckCircle2Icon
+            : CalendarClockIcon;
 
   return (
     <Tooltip>
@@ -293,11 +323,13 @@ const ScheduledReminderStatus = ({ recipients }: ScheduledReminderStatusProps) =
           type="button"
           className={cn(
             'flex items-center gap-1.5 rounded-sm text-xs underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            hasFailure
+            hasFailure || hasProviderFailure
               ? 'text-destructive'
-              : isSent
-                ? 'text-green-600 dark:text-green-400'
-                : 'text-blue-600 dark:text-blue-300',
+              : hasProviderDelay
+                ? 'text-amber-700 dark:text-amber-400'
+                : isDelivered || isSent
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-blue-600 dark:text-blue-300',
           )}
           aria-label={_(msg`Reminder status. View details`)}
           onClick={(event) => event.stopPropagation()}
@@ -343,6 +375,36 @@ const ScheduledReminderStatus = ({ recipients }: ScheduledReminderStatusProps) =
                       hourCycle: 'h12',
                     })}
                   </Trans>
+                </p>
+              )}
+              {item.providerStatus === ScheduledReminderProviderStatus.DELIVERED && item.providerDeliveredAt && (
+                <p className="mt-0.5 text-green-700 text-xs dark:text-green-400">
+                  <Trans>
+                    Delivered{' '}
+                    {i18n.date(item.providerDeliveredAt, {
+                      ...DateTime.DATETIME_MED,
+                      hourCycle: 'h12',
+                    })}
+                  </Trans>
+                </p>
+              )}
+              {item.providerStatus === ScheduledReminderProviderStatus.DELAYED && item.providerDelayedAt && (
+                <p className="mt-0.5 text-amber-700 text-xs dark:text-amber-400">
+                  <Trans>
+                    Delivery delayed{' '}
+                    {i18n.date(item.providerDelayedAt, {
+                      ...DateTime.DATETIME_MED,
+                      hourCycle: 'h12',
+                    })}
+                  </Trans>
+                </p>
+              )}
+              {(item.providerStatus === ScheduledReminderProviderStatus.BOUNCED ||
+                item.providerStatus === ScheduledReminderProviderStatus.FAILED ||
+                item.providerStatus === ScheduledReminderProviderStatus.SUPPRESSED) && (
+                <p className="mt-0.5 text-destructive text-xs">
+                  <Trans>Provider delivery failed</Trans>
+                  {item.providerFailureCode ? ` (${item.providerFailureCode})` : ''}
                 </p>
               )}
               {item.status === ScheduledReminderDeliveryStatus.FAILED && (

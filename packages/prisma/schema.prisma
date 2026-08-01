@@ -637,6 +637,15 @@ enum ScheduledReminderDeliveryStatus {
   CANCELLED
 }
 
+enum ScheduledReminderProviderStatus {
+  SUBMITTED
+  DELAYED
+  DELIVERED
+  BOUNCED
+  FAILED
+  SUPPRESSED
+}
+
 /// @zod.import(["import { ZRecipientAuthOptionsSchema } from '@documenso/lib/types/document-auth';"])
 model Recipient {
   id                          Int                         @id @default(autoincrement())
@@ -699,6 +708,16 @@ model ScheduledReminderDelivery {
   lastErrorCode    String?
   lastErrorMessage String?
 
+  providerStatus      ScheduledReminderProviderStatus?
+  providerStatusAt    DateTime?
+  providerMessageId   String?                          @unique
+  providerEmailId     String?                          @unique
+  providerFailureCode String?
+  providerSubmittedAt DateTime?
+  providerDelayedAt   DateTime?
+  providerDeliveredAt DateTime?
+  providerFailedAt    DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -711,10 +730,29 @@ model ScheduledReminderDelivery {
   createdById Int?
   createdBy   User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
+  providerEvents ScheduledReminderProviderEvent[]
+
   @@index([status, nextAttemptAt])
   @@index([recipientId, createdAt])
   @@index([envelopeId, createdAt])
   @@index([createdById])
+}
+
+model ScheduledReminderProviderEvent {
+  id String @id
+
+  eventType       String   @db.VarChar(64)
+  occurredAt      DateTime
+  providerEmailId String?  @db.VarChar(255)
+  messageId       String   @db.VarChar(512)
+  createdAt       DateTime @default(now())
+
+  deliveryId String
+  delivery   ScheduledReminderDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId, occurredAt])
+  @@index([providerEmailId])
+  @@index([messageId])
 }
 
 enum FieldType {

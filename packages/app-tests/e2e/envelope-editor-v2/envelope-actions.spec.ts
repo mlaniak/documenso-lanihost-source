@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { NEXT_PUBLIC_WEBAPP_URL } from '@documenso/lib/constants/app';
+import { processResendDeliveryEvent } from '@documenso/lib/server-only/email/handle-resend-delivery-webhook';
 import { createApiToken } from '@documenso/lib/server-only/public-api/create-api-token';
 import { prisma } from '@documenso/prisma';
 import { seedDraftDocument } from '@documenso/prisma/seed/documents';
@@ -14,7 +15,13 @@ import type { TDistributeEnvelopeRequest } from '@documenso/trpc/server/envelope
 import type { TCreateEnvelopeRecipientsRequest } from '@documenso/trpc/server/envelope-router/envelope-recipients/create-envelope-recipients.types';
 import type { TGetEnvelopeResponse } from '@documenso/trpc/server/envelope-router/get-envelope.types';
 import { expect, type Page, test } from '@playwright/test';
-import { DocumentStatus, EnvelopeType, FieldType, RecipientRole } from '@prisma/client';
+import {
+  DocumentStatus,
+  EnvelopeType,
+  FieldType,
+  RecipientRole,
+  ScheduledReminderDeliveryStatus,
+} from '@prisma/client';
 
 import { apiSignin } from '../fixtures/authentication';
 import {
@@ -320,6 +327,62 @@ test.describe('document editor', () => {
 
     await expect(page.getByText('Pending · Reminder scheduled')).toBeVisible();
     await expect(page.getByText(`You scheduled a reminder for ${recipientEmail}`, { exact: false })).toBeVisible();
+
+    if (!delivery) {
+      throw new Error('Expected a scheduled reminder delivery');
+    }
+
+    const providerMessageId = `<scheduled-reminder-${delivery.id}@test.documenso.com>`;
+    const providerSentAt = new Date();
+
+    await prisma.scheduledReminderDelivery.update({
+      where: { id: delivery.id },
+      data: {
+        status: ScheduledReminderDeliveryStatus.SENT,
+        sentAt: providerSentAt,
+        providerMessageId,
+      },
+    });
+
+    const deliveredWebhookId = `webhook_${delivery.id}`;
+    const deliveredEvent = {
+      type: 'email.delivered',
+      created_at: new Date(providerSentAt.getTime() + 1000).toISOString(),
+      data: {
+        email_id: `provider_${delivery.id}`,
+        message_id: providerMessageId,
+      },
+    } as const;
+
+    expect(await processResendDeliveryEvent(deliveredWebhookId, deliveredEvent)).toBe(true);
+    expect(await processResendDeliveryEvent(deliveredWebhookId, deliveredEvent)).toBe(false);
+
+    await processResendDeliveryEvent(`webhook_delayed_${delivery.id}`, {
+      ...deliveredEvent,
+      type: 'email.delivery_delayed',
+      created_at: new Date(providerSentAt.getTime() - 1000).toISOString(),
+    });
+
+    const providerDelivery = await prisma.scheduledReminderDelivery.findUniqueOrThrow({
+      where: { id: delivery.id },
+    });
+
+    expect(providerDelivery.providerStatus).toBe('DELIVERED');
+
+    const providerAuditLogs = await prisma.documentAuditLog.findMany({
+      where: {
+        envelopeId,
+        type: { in: ['REMINDER_DELIVERED', 'REMINDER_DELIVERY_DELAYED'] },
+      },
+    });
+
+    expect(providerAuditLogs).toHaveLength(1);
+    expect(providerAuditLogs[0]?.type).toBe('REMINDER_DELIVERED');
+
+    await page.reload();
+
+    await expect(page.getByText('Pending · Reminder delivered')).toBeVisible();
+    await expect(page.getByText(`Your scheduled reminder was delivered to ${recipientEmail}`)).toBeVisible();
   });
 
   test('duplicate document', async ({ page }) => {

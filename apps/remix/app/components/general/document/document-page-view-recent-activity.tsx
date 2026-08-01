@@ -12,6 +12,7 @@ import {
   CheckCheckIcon,
   CheckIcon,
   CircleXIcon,
+  Clock8Icon,
   Loader,
   MailCheckIcon,
   MailOpen,
@@ -149,6 +150,25 @@ export const DocumentPageViewRecentActivity = ({ documentId, userId }: DocumentP
                         <MailCheckIcon className="h-3 w-3" aria-hidden="true" />
                       </div>
                     ))
+                    .with(DOCUMENT_AUDIT_LOG_TYPE.REMINDER_DELIVERED, () => (
+                      <div className="rounded-full border border-green-300 bg-widget p-1 text-green-600 dark:border-green-700 dark:text-green-400">
+                        <MailCheckIcon className="h-3 w-3" aria-hidden="true" />
+                      </div>
+                    ))
+                    .with(DOCUMENT_AUDIT_LOG_TYPE.REMINDER_DELIVERY_DELAYED, () => (
+                      <div className="rounded-full border border-amber-300 bg-widget p-1 text-amber-600 dark:border-amber-700 dark:text-amber-400">
+                        <Clock8Icon className="h-3 w-3" aria-hidden="true" />
+                      </div>
+                    ))
+                    .with(
+                      DOCUMENT_AUDIT_LOG_TYPE.REMINDER_BOUNCED,
+                      DOCUMENT_AUDIT_LOG_TYPE.REMINDER_DELIVERY_FAILED,
+                      () => (
+                        <div className="rounded-full border border-red-300 bg-widget p-1 text-red-600 dark:border-red-700 dark:text-red-400">
+                          <CircleXIcon className="h-3 w-3" aria-hidden="true" />
+                        </div>
+                      ),
+                    )
                     .with(DOCUMENT_AUDIT_LOG_TYPE.REMINDER_CANCELLED, DOCUMENT_AUDIT_LOG_TYPE.REMINDER_FAILED, () => (
                       <div className="rounded-full border border-red-300 bg-widget p-1 text-red-600 dark:border-red-700 dark:text-red-400">
                         <CircleXIcon className="h-3 w-3" aria-hidden="true" />

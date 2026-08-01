@@ -2,6 +2,16 @@ export const MAX_SCHEDULED_REMINDER_DELIVERY_ATTEMPTS = 5;
 
 export const SCHEDULED_REMINDER_CLAIM_TIMEOUT_MINUTES = 15;
 
+export const getScheduledReminderMessageId = (deliveryId: string, appUrl: string): string => {
+  const hostname = new URL(appUrl).hostname.toLowerCase();
+
+  return `<scheduled-reminder-${deliveryId.toLowerCase()}@${hostname}>`;
+};
+
+export const getScheduledReminderIdempotencyKey = (deliveryId: string): string => `scheduled-reminder/${deliveryId}`;
+
+export const normaliseEmailMessageId = (messageId: string): string => messageId.trim().toLowerCase();
+
 export const getScheduledReminderRetryAt = (attemptCount: number, now = new Date()): Date => {
   const baseDelayMinutes = 5;
   const maximumDelayMinutes = 6 * 60;

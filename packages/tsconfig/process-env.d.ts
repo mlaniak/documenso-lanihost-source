@@ -65,6 +65,7 @@ declare namespace NodeJS {
     NEXT_PRIVATE_SMTP_TRANSPORT?: 'mailchannels' | 'resend' | 'smtp-auth' | 'smtp-api';
 
     NEXT_PRIVATE_RESEND_API_KEY?: string;
+    NEXT_PRIVATE_RESEND_WEBHOOK_SECRET?: string;
 
     NEXT_PRIVATE_MAILCHANNELS_API_KEY?: string;
     NEXT_PRIVATE_MAILCHANNELS_DKIM_DOMAIN?: string;

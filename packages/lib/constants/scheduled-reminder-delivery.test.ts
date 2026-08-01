@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getScheduledReminderErrorDetails,
+  getScheduledReminderIdempotencyKey,
+  getScheduledReminderMessageId,
   getScheduledReminderRetryAt,
   MAX_SCHEDULED_REMINDER_DELIVERY_ATTEMPTS,
+  normaliseEmailMessageId,
 } from './scheduled-reminder-delivery';
 
 describe('scheduled reminder delivery', () => {
@@ -21,6 +24,14 @@ describe('scheduled reminder delivery', () => {
 
   it('caps retries at five attempts', () => {
     expect(MAX_SCHEDULED_REMINDER_DELIVERY_ATTEMPTS).toBe(5);
+  });
+
+  it('builds stable provider correlation and idempotency identifiers', () => {
+    expect(getScheduledReminderMessageId('Delivery_123', 'https://DOCUMENSO.Example.com/path')).toBe(
+      '<scheduled-reminder-delivery_123@documenso.example.com>',
+    );
+    expect(getScheduledReminderIdempotencyKey('Delivery_123')).toBe('scheduled-reminder/Delivery_123');
+    expect(normaliseEmailMessageId('  <Scheduled-Reminder@Example.COM> ')).toBe('<scheduled-reminder@example.com>');
   });
 
   it('normalises and truncates delivery errors', () => {

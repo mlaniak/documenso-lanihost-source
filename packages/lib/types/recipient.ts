@@ -1,7 +1,7 @@
 import { RecipientSchema } from '@documenso/prisma/generated/zod/modelSchema/RecipientSchema';
 import { TeamSchema } from '@documenso/prisma/generated/zod/modelSchema/TeamSchema';
 import { UserSchema } from '@documenso/prisma/generated/zod/modelSchema/UserSchema';
-import { ScheduledReminderDeliveryStatus } from '@prisma/client';
+import { ScheduledReminderDeliveryStatus, ScheduledReminderProviderStatus } from '@prisma/client';
 import { z } from 'zod';
 
 import { zEmail } from '../utils/zod';
@@ -18,6 +18,13 @@ const ZScheduledReminderDeliverySummarySchema = z.object({
   cancelledAt: z.date().nullable(),
   lastErrorCode: z.string().nullable(),
   lastErrorMessage: z.string().nullable(),
+  providerStatus: z.nativeEnum(ScheduledReminderProviderStatus).nullable(),
+  providerStatusAt: z.date().nullable(),
+  providerSubmittedAt: z.date().nullable(),
+  providerDelayedAt: z.date().nullable(),
+  providerDeliveredAt: z.date().nullable(),
+  providerFailedAt: z.date().nullable(),
+  providerFailureCode: z.string().nullable(),
 });
 
 /**
