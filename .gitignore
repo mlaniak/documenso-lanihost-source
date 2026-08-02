@@ -75,3 +75,6 @@ tmp/
 
 # opencode
 .opencode/package-lock.json
+
+# local code intelligence index
+.codegraph/

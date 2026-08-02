@@ -65,6 +65,10 @@ export const AppNavDesktop = ({ className, setIsCommandMenuOpen, ...props }: App
               href: `/t/${teamUrl}/reminders`,
               label: msg`Reminders`,
             },
+            {
+              href: `/t/${teamUrl}/operations`,
+              label: msg`Operations`,
+            },
           ]
         : []),
     ];

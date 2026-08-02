@@ -17,6 +17,7 @@ import { SEND_SIGNING_REJECTION_EMAILS_JOB_DEFINITION } from './definitions/emai
 import { SEND_SIGNING_EMAIL_JOB_DEFINITION } from './definitions/emails/send-signing-email';
 import { SEND_TEAM_DELETED_EMAIL_JOB_DEFINITION } from './definitions/emails/send-team-deleted-email';
 import { ADMIN_DELETE_ORGANISATION_JOB_DEFINITION } from './definitions/internal/admin-delete-organisation';
+import { ARCHIVE_COMPLETED_ENVELOPE_JOB_DEFINITION } from './definitions/internal/archive-completed-envelope';
 import { BACKPORT_SUBSCRIPTION_CLAIM_JOB_DEFINITION } from './definitions/internal/backport-subscription-claims';
 import { BULK_SEND_TEMPLATE_JOB_DEFINITION } from './definitions/internal/bulk-send-template';
 import { CANCEL_ORGANISATION_SUBSCRIPTION_JOB_DEFINITION } from './definitions/internal/cancel-organisation-subscription';
@@ -64,6 +65,7 @@ export const jobsClient = new JobClient([
   CLEANUP_RATE_LIMITS_JOB_DEFINITION,
   SYNC_EMAIL_DOMAINS_JOB_DEFINITION,
   ADMIN_DELETE_ORGANISATION_JOB_DEFINITION,
+  ARCHIVE_COMPLETED_ENVELOPE_JOB_DEFINITION,
   CANCEL_ORGANISATION_SUBSCRIPTION_JOB_DEFINITION,
 ] as const);
 

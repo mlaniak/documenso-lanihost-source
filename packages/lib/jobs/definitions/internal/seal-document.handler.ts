@@ -355,6 +355,21 @@ export const run = async ({ payload, io }: { payload: TSealDocumentJobDefinition
       },
     });
   }
+
+  if (!isRejected && !isResealing) {
+    const { isCompletionArchiveProviderConfigured } = await import(
+      '../../../server-only/integrations/google-drive/archive-completed-envelope'
+    );
+
+    if (isCompletionArchiveProviderConfigured()) {
+      await jobs
+        .triggerJob({
+          name: 'internal.archive-completed-envelope',
+          payload: { envelopeId },
+        })
+        .catch((error) => console.error('[Completion Archive] Failed to queue archive job', error));
+    }
+  }
 };
 
 type DecorateAndSignPdfOptions = {

@@ -460,6 +460,7 @@ model Envelope {
   shareLinks                  DocumentShareLink[]
   auditLogs                   DocumentAuditLog[]
   scheduledReminderDeliveries ScheduledReminderDelivery[]
+  automationRuns              DocumentAutomationRun[]
 
   // Envelope settings
   authOptions Json? /// [DocumentAuthOptions] @zod.custom.use(ZDocumentAuthOptionsSchema)
@@ -1088,7 +1089,7 @@ model OrganisationGlobalSettings {
   aiFeaturesEnabled Boolean @default(false)
 }
 
-/// @zod.import(["import { ZDocumentEmailSettingsSchema } from '@documenso/lib/types/document-email';", "import { ZDefaultRecipientsSchema } from '@documenso/lib/types/default-recipients';", "import { ZEnvelopeExpirationPeriod as ZEnvelopeExpirationPeriodSchema } from '@documenso/lib/constants/envelope-expiration';", "import { ZEnvelopeReminderSettings as ZEnvelopeReminderSettingsSchema } from '@documenso/lib/constants/envelope-reminder';", "import { ZCssVarsSchema } from '@documenso/lib/types/css-vars';"])
+/// @zod.import(["import { ZDocumentEmailSettingsSchema } from '@documenso/lib/types/document-email';", "import { ZDefaultRecipientsSchema } from '@documenso/lib/types/default-recipients';", "import { ZEnvelopeExpirationPeriod as ZEnvelopeExpirationPeriodSchema } from '@documenso/lib/constants/envelope-expiration';", "import { ZEnvelopeReminderSettings as ZEnvelopeReminderSettingsSchema } from '@documenso/lib/constants/envelope-reminder';", "import { ZCssVarsSchema } from '@documenso/lib/types/css-vars';", "import { ZTeamOperationsSettings } from '@documenso/lib/types/team-operations';"])
 model TeamGlobalSettings {
   id   String @id
   team Team?
@@ -1129,6 +1130,43 @@ model TeamGlobalSettings {
 
   // AI features settings.
   aiFeaturesEnabled Boolean?
+
+  // Operational workflow settings. Kept as JSON so this self-hosted extension
+  // remains additive and easy to carry across upstream Documenso upgrades.
+  operationsSettings Json? /// [TeamOperationsSettings] @zod.custom.use(ZTeamOperationsSettings)
+}
+
+enum DocumentAutomationType {
+  COMPLETION_ARCHIVE
+  SIGNING_LINK_SMS
+}
+
+enum DocumentAutomationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+model DocumentAutomationRun {
+  id             String                   @id @default(cuid())
+  idempotencyKey String                   @unique
+  type           DocumentAutomationType
+  status         DocumentAutomationStatus @default(PENDING)
+  provider       String
+  providerId     String?
+  error          String?
+  metadata       Json?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  completedAt    DateTime?
+
+  envelopeId String
+  envelope   Envelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+
+  @@index([envelopeId, type])
+  @@index([status, createdAt])
 }
 
 model Team {

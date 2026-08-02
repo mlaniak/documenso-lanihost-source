@@ -77,6 +77,10 @@ export const AppNavMobile = ({ isMenuOpen, onMenuOpenChange }: AppNavMobileProps
               href: `/t/${teamUrl}/reminders`,
               text: t`Reminders`,
             },
+            {
+              href: `/t/${teamUrl}/operations`,
+              text: t`Operations`,
+            },
           ]
         : []),
       {

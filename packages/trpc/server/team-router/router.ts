@@ -24,6 +24,7 @@ import {
   ZResendTeamEmailVerificationMutationSchema,
   ZUpdateTeamEmailMutationSchema,
 } from './schema';
+import { updateOperationsSettingsRoute } from './update-operations-settings';
 import { updateTeamRoute } from './update-team';
 import { updateTeamBrandingLogoRoute } from './update-team-branding-logo';
 import { updateTeamGroupRoute } from './update-team-group';
@@ -52,6 +53,9 @@ export const teamRouter = router({
   settings: {
     update: updateTeamSettingsRoute,
     updateBrandingLogo: updateTeamBrandingLogoRoute,
+  },
+  operations: {
+    updateSettings: updateOperationsSettingsRoute,
   },
 
   // Old routes (to be migrated)

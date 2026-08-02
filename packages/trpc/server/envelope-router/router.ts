@@ -30,6 +30,7 @@ import { reportRecipientRoute } from './envelope-recipients/report-recipient';
 import { updateEnvelopeRecipientsRoute } from './envelope-recipients/update-envelope-recipients';
 import { findEnvelopeAuditLogsRoute } from './find-envelope-audit-logs';
 import { findEnvelopesRoute } from './find-envelopes';
+import { findOperationsOverviewRoute } from './find-operations-overview';
 import { findReminderSchedulesRoute } from './find-reminder-schedules';
 import { getEditorEnvelopeRoute } from './get-editor-envelope';
 import { getEnvelopeRoute } from './get-envelope';
@@ -40,6 +41,7 @@ import { redistributeEnvelopeRoute } from './redistribute-envelope';
 import { replaceEnvelopeItemPdfRoute } from './replace-envelope-item-pdf';
 import { retryReminderDeliveryRoute } from './retry-reminder-delivery';
 import { saveAsTemplateRoute } from './save-as-template';
+import { sendSigningLinkSmsRoute } from './send-signing-link-sms';
 import { setEnvelopeFieldsRoute } from './set-envelope-fields';
 import { setEnvelopeRecipientsRoute } from './set-envelope-recipients';
 import { signEnvelopeFieldRoute } from './sign-envelope-field';
@@ -120,6 +122,10 @@ export const envelopeRouter = router({
     update: updateReminderScheduleRoute,
     cancel: cancelReminderScheduleRoute,
     retry: retryReminderDeliveryRoute,
+  },
+  operations: {
+    overview: findOperationsOverviewRoute,
+    sendSigningLinkSms: sendSigningLinkSmsRoute,
   },
   signingStatus: signingStatusEnvelopeRoute,
 });

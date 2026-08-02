@@ -7,6 +7,7 @@ import { getScheduledReminderSequenceDates } from '@documenso/lib/constants/sche
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '@documenso/lib/types/document-audit-logs';
 import { extractDerivedDocumentEmailSettings } from '@documenso/lib/types/document-email';
+import { normalizeReminderToBusinessWindow, parseTeamOperationsSettings } from '@documenso/lib/types/team-operations';
 import { createDocumentAuditLogData } from '@documenso/lib/utils/document-audit-logs';
 import { prisma } from '@documenso/prisma';
 import {
@@ -81,6 +82,13 @@ export const updateDocumentReminderSchedule = async ({
     where: envelopeWhereInput,
     include: {
       documentMeta: true,
+      team: {
+        select: {
+          teamGlobalSettings: {
+            select: { operationsSettings: true },
+          },
+        },
+      },
       recipients: {
         where: { id: { in: recipients } },
       },
@@ -92,6 +100,25 @@ export const updateDocumentReminderSchedule = async ({
       message: 'Document could not be found',
     });
   }
+
+  const operationsSettings = parseTeamOperationsSettings(envelope.team.teamGlobalSettings.operationsSettings);
+
+  sequenceDates = sequenceDates.reduce<Date[]>((dates, date) => {
+    let normalized = normalizeReminderToBusinessWindow({ date, timezone, settings: operationsSettings });
+    const previous = dates.at(-1);
+
+    if (previous && normalized.getTime() <= previous.getTime()) {
+      normalized = normalizeReminderToBusinessWindow({
+        date: new Date(previous.getTime() + 24 * 60 * 60 * 1000),
+        timezone,
+        settings: operationsSettings,
+      });
+    }
+
+    dates.push(normalized);
+
+    return dates;
+  }, []);
 
   if (envelope.status !== DocumentStatus.PENDING || !envelope.documentMeta) {
     throw new AppError(AppErrorCode.INVALID_REQUEST, {
