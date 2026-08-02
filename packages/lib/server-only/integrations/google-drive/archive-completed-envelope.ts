@@ -84,7 +84,13 @@ const driveRequest = async <T>(accessToken: string, path: string, init?: Request
 
 const findArchiveFolder = async (accessToken: string, rootFolderId: string, envelopeId: string) => {
   const query = `'${rootFolderId.replaceAll("'", "\\'")}' in parents and trashed = false and appProperties has { key='documensoEnvelopeId' and value='${envelopeId.replaceAll("'", "\\'")}' }`;
-  const search = new URLSearchParams({ q: query, fields: 'files(id,name,webViewLink)', pageSize: '1' });
+  const search = new URLSearchParams({
+    q: query,
+    fields: 'files(id,name,webViewLink)',
+    pageSize: '1',
+    supportsAllDrives: 'true',
+    includeItemsFromAllDrives: 'true',
+  });
   const result = await driveRequest<{ files: Array<{ id: string; name: string; webViewLink?: string }> }>(
     accessToken,
     `/files?${search.toString()}`,
@@ -106,7 +112,13 @@ const findChildByProperty = async ({
 }) => {
   const escapeDriveQuery = (input: string) => input.replaceAll("'", "\\'");
   const query = `'${escapeDriveQuery(parentId)}' in parents and trashed = false and appProperties has { key='${escapeDriveQuery(key)}' and value='${escapeDriveQuery(value)}' }`;
-  const search = new URLSearchParams({ q: query, fields: 'files(id,name,webViewLink)', pageSize: '1' });
+  const search = new URLSearchParams({
+    q: query,
+    fields: 'files(id,name,webViewLink)',
+    pageSize: '1',
+    supportsAllDrives: 'true',
+    includeItemsFromAllDrives: 'true',
+  });
   const result = await driveRequest<{ files: Array<{ id: string; name: string; webViewLink?: string }> }>(
     accessToken,
     `/files?${search.toString()}`,
@@ -130,15 +142,19 @@ const createDriveFile = async ({
   data?: Uint8Array;
   appProperties?: Record<string, string>;
 }) => {
-  const file = await driveRequest<{ id: string; webViewLink?: string }>(accessToken, '/files?fields=id,webViewLink', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, parents: [parentId], mimeType: data ? undefined : mimeType, appProperties }),
-  });
+  const file = await driveRequest<{ id: string; webViewLink?: string }>(
+    accessToken,
+    '/files?supportsAllDrives=true&fields=id,webViewLink',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, parents: [parentId], mimeType: data ? undefined : mimeType, appProperties }),
+    },
+  );
 
   if (data) {
     const response = await fetch(
-      `https://www.googleapis.com/upload/drive/v3/files/${file.id}?uploadType=media&fields=id,webViewLink`,
+      `https://www.googleapis.com/upload/drive/v3/files/${file.id}?uploadType=media&supportsAllDrives=true&fields=id,webViewLink`,
       {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': mimeType },
