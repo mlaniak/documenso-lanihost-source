@@ -1,5 +1,6 @@
 import { getScheduledReminderDeliveryHealth } from '@documenso/lib/constants/scheduled-reminder-delivery';
 import { AppError } from '@documenso/lib/errors/app-error';
+import { getReminderNextDeliveryDisplay } from '@documenso/lib/universal/reminder-next-delivery';
 import { trpc } from '@documenso/trpc/react';
 import type { TFindReminderSchedulesResponse } from '@documenso/trpc/server/envelope-router/find-reminder-schedules.types';
 import { ClientOnly } from '@documenso/ui/components/client-only';
@@ -418,26 +419,48 @@ const ReminderSchedulesPageLoadingState = () => (
 );
 
 const NextDelivery = ({ row, timezone }: { row: ReminderSchedule; timezone: string }) => {
-  const date = row.nextDeliveryAt ?? row.scheduledAt;
+  const display = getReminderNextDeliveryDisplay({
+    documentStatus: row.documentStatus,
+    documentCompletedAt: row.documentCompletedAt,
+    nextDeliveryAt: row.nextDeliveryAt,
+    lastActivityAt: row.lastActivityAt,
+  });
+  const isCompleted = display.state === 'COMPLETED';
+  const isScheduled = display.state === 'SCHEDULED';
+  const DeliveryIcon = isCompleted ? FileCheck2Icon : Clock3Icon;
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <div className="flex w-fit cursor-help items-start gap-2">
-          <Clock3Icon className="mt-0.5 h-4 w-4 text-blue-600" />
+          <DeliveryIcon
+            className={cn(
+              'mt-0.5 h-4 w-4',
+              isCompleted && 'text-green-600 dark:text-green-400',
+              isScheduled && 'text-blue-600 dark:text-blue-300',
+              !isCompleted && !isScheduled && 'text-muted-foreground',
+            )}
+          />
           <div>
-            <p className="font-medium">{formatDate(date, timezone)}</p>
-            <p className="text-muted-foreground text-xs">{timezone}</p>
+            <p className="font-medium">{formatDate(display.date, timezone)}</p>
+            <p className="text-muted-foreground text-xs">{isCompleted ? <Trans>Completed</Trans> : timezone}</p>
           </div>
         </div>
       </TooltipTrigger>
       <TooltipContent className="max-w-xs">
-        <p>
-          {row.nextDeliveryAt
-            ? `Next reminder: ${formatDate(row.nextDeliveryAt, timezone)}`
-            : 'No future delivery queued'}
-        </p>
-        <p>Last activity: {formatDate(row.lastActivityAt, timezone)}</p>
+        {isCompleted ? (
+          <>
+            <p>Document completed: {formatDate(display.date, timezone)}</p>
+            <p>No future delivery queued</p>
+          </>
+        ) : (
+          <p>
+            {row.nextDeliveryAt
+              ? `Next reminder: ${formatDate(row.nextDeliveryAt, timezone)}`
+              : 'No future delivery queued'}
+          </p>
+        )}
+        <p>Last reminder activity: {formatDate(row.lastActivityAt, timezone)}</p>
       </TooltipContent>
     </Tooltip>
   );
