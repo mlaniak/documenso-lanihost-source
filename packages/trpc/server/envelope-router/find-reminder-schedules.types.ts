@@ -3,6 +3,8 @@ import { z } from 'zod';
 
 import type { TrpcRouteMeta } from '../trpc';
 
+import { REMINDER_SCHEDULE_ACTIVITY_TYPES } from './reminder-schedule-activity';
+
 export const findReminderSchedulesMeta: TrpcRouteMeta = {
   openapi: {
     method: 'GET',
@@ -23,6 +25,13 @@ export const ZReminderScheduleStatusSchema = z.enum([
   'PERMANENT_FAILURE',
   'CANCELLED',
 ]);
+
+export const ZReminderScheduleActivitySchema = z.object({
+  type: z.enum(REMINDER_SCHEDULE_ACTIVITY_TYPES),
+  occurredAt: z.date(),
+  scheduledFor: z.date().nullable(),
+  sequencePosition: z.number().int().nullable(),
+});
 
 export const ZFindReminderSchedulesRequestSchema = z.object({
   limit: z.number().int().min(1).max(500).default(200),
@@ -51,6 +60,7 @@ export const ZFindReminderSchedulesResponseSchema = z.object({
       sequenceTotal: z.number().int(),
       sequenceIntervalDays: z.number().int().nullable(),
       status: ZReminderScheduleStatusSchema,
+      activity: z.array(ZReminderScheduleActivitySchema),
       lastActivityAt: z.date(),
       lastErrorCode: z.string().nullable(),
       lastErrorMessage: z.string().nullable(),

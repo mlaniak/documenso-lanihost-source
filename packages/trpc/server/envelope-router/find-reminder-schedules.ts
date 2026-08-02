@@ -15,6 +15,7 @@ import {
   ZFindReminderSchedulesRequestSchema,
   ZFindReminderSchedulesResponseSchema,
 } from './find-reminder-schedules.types';
+import { buildReminderScheduleActivity } from './reminder-schedule-activity';
 
 export const findReminderSchedulesRoute = authenticatedProcedure
   .meta(findReminderSchedulesMeta)
@@ -27,7 +28,13 @@ export const findReminderSchedulesRoute = authenticatedProcedure
       where: { envelope: { teamId: ctx.teamId } },
       include: {
         envelope: { select: { id: true, secondaryId: true, title: true, status: true, completedAt: true } },
-        recipient: { select: { id: true, name: true, email: true, signingStatus: true, expiresAt: true } },
+        recipient: {
+          select: { id: true, name: true, email: true, signingStatus: true, signedAt: true, expiresAt: true },
+        },
+        providerEvents: {
+          select: { eventType: true, occurredAt: true },
+          orderBy: { occurredAt: 'asc' },
+        },
       },
       orderBy: { createdAt: 'desc' },
       take: input.limit,
@@ -80,6 +87,7 @@ export const findReminderSchedulesRoute = authenticatedProcedure
           sequenceTotal: primary.sequenceTotal,
           sequenceIntervalDays: primary.sequenceIntervalDays,
           status: getReminderScheduleStatus(ordered),
+          activity: buildReminderScheduleActivity(ordered),
           lastActivityAt: last.updatedAt,
           lastErrorCode: failed?.lastErrorCode ?? last.lastErrorCode,
           lastErrorMessage: failed?.lastErrorMessage ?? last.lastErrorMessage,

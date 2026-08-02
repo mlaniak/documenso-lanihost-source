@@ -36,6 +36,8 @@ import {
   Clock3Icon,
   DownloadIcon,
   EyeIcon,
+  FileCheck2Icon,
+  HistoryIcon,
   Loader2Icon,
   MoreHorizontalIcon,
   RefreshCwIcon,
@@ -43,6 +45,7 @@ import {
   SearchIcon,
   SendIcon,
   ShieldCheckIcon,
+  SignatureIcon,
   XCircleIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -69,6 +72,7 @@ export default function ReminderSchedulesPage() {
   const [filter, setFilter] = useState<ReminderFilter>('ALL');
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<ReminderSchedule | null>(null);
+  const [viewingActivity, setViewingActivity] = useState<ReminderSchedule | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const schedules = trpc.envelope.reminderSchedule.find.useQuery(
     { limit: 500 },
@@ -170,7 +174,7 @@ export default function ReminderSchedulesPage() {
     () => [
       {
         header: t`Next delivery`,
-        cell: ({ row }) => <NextDelivery row={row.original} />,
+        cell: ({ row }) => <NextDelivery row={row.original} timezone={localTimezone ?? row.original.timezone} />,
       },
       {
         header: t`Document`,
@@ -223,7 +227,7 @@ export default function ReminderSchedulesPage() {
       },
       {
         header: t`Email delivery`,
-        cell: ({ row }) => <ReminderStatus row={row.original} />,
+        cell: ({ row }) => <ReminderStatus row={row.original} timezone={localTimezone ?? row.original.timezone} />,
       },
       {
         header: t`Actions`,
@@ -269,6 +273,10 @@ export default function ReminderSchedulesPage() {
                     <ScrollTextIcon className="mr-2 h-4 w-4" />
                     <Trans>Audit logs</Trans>
                   </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setViewingActivity(row.original)}>
+                  <HistoryIcon className="mr-2 h-4 w-4" />
+                  <Trans>View activity</Trans>
                 </DropdownMenuItem>
 
                 {(row.original.canRetry || row.original.canReschedule || row.original.canCancel) && (
@@ -378,11 +386,16 @@ export default function ReminderSchedulesPage() {
         onOpenChange={(open) => !open && setEditing(null)}
         onSaved={refresh}
       />
+      <ReminderActivityDialog
+        row={viewingActivity}
+        timezone={localTimezone ?? viewingActivity?.timezone ?? 'America/Chicago'}
+        onOpenChange={(open) => !open && setViewingActivity(null)}
+      />
     </div>
   );
 }
 
-const NextDelivery = ({ row }: { row: ReminderSchedule }) => {
+const NextDelivery = ({ row, timezone }: { row: ReminderSchedule; timezone: string }) => {
   const date = row.nextDeliveryAt ?? row.scheduledAt;
 
   return (
@@ -391,18 +404,18 @@ const NextDelivery = ({ row }: { row: ReminderSchedule }) => {
         <div className="flex w-fit cursor-help items-start gap-2">
           <Clock3Icon className="mt-0.5 h-4 w-4 text-blue-600" />
           <div>
-            <p className="font-medium">{formatDate(date, row.timezone)}</p>
-            <p className="text-muted-foreground text-xs">{row.timezone}</p>
+            <p className="font-medium">{formatDate(date, timezone)}</p>
+            <p className="text-muted-foreground text-xs">{timezone}</p>
           </div>
         </div>
       </TooltipTrigger>
       <TooltipContent className="max-w-xs">
         <p>
           {row.nextDeliveryAt
-            ? `Next reminder: ${formatDate(row.nextDeliveryAt, row.timezone)}`
+            ? `Next reminder: ${formatDate(row.nextDeliveryAt, timezone)}`
             : 'No future delivery queued'}
         </p>
-        <p>Last activity: {formatDate(row.lastActivityAt, row.timezone)}</p>
+        <p>Last activity: {formatDate(row.lastActivityAt, timezone)}</p>
       </TooltipContent>
     </Tooltip>
   );
@@ -504,7 +517,7 @@ const DeliveryHealthSummary = ({ health, isLoading, activeFilter, onFilterChange
   );
 };
 
-const ReminderStatus = ({ row }: { row: ReminderSchedule }) => {
+const ReminderStatus = ({ row, timezone }: { row: ReminderSchedule; timezone: string }) => {
   const config = {
     SCHEDULED: { label: 'Scheduled', variant: 'secondary' as const, icon: CalendarClockIcon },
     SENDING: { label: 'Sending', variant: 'secondary' as const, icon: SendIcon },
@@ -526,13 +539,92 @@ const ReminderStatus = ({ row }: { row: ReminderSchedule }) => {
         </Badge>
       </TooltipTrigger>
       <TooltipContent className="max-w-xs">
-        <p>Last activity: {formatDate(row.lastActivityAt, row.timezone)}</p>
+        <p>Last activity: {formatDate(row.lastActivityAt, timezone)}</p>
         {row.lastErrorMessage && <p>{row.lastErrorMessage}</p>}
         {row.lastErrorCode && <p className="text-xs opacity-80">Code: {row.lastErrorCode}</p>}
       </TooltipContent>
     </Tooltip>
   );
 };
+
+const ReminderActivityDialog = ({
+  row,
+  timezone,
+  onOpenChange,
+}: {
+  row: ReminderSchedule | null;
+  timezone: string;
+  onOpenChange: (open: boolean) => void;
+}) => (
+  <Dialog open={row !== null} onOpenChange={onOpenChange}>
+    <DialogContent className="sm:max-w-lg">
+      <DialogHeader>
+        <DialogTitle>
+          <Trans>Reminder activity</Trans>
+        </DialogTitle>
+        <DialogDescription>{row?.documentTitle}</DialogDescription>
+      </DialogHeader>
+      {row && row.activity.length > 0 ? (
+        <ol className="max-h-[60vh] space-y-0 overflow-y-auto pr-2">
+          {row.activity.map((item, index) => {
+            const config = getActivityConfig(item.type);
+            const Icon = config.icon;
+
+            return (
+              <li key={`${item.type}-${item.occurredAt.toISOString()}-${item.sequencePosition ?? index}`}>
+                <div className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <span className={cn('rounded-full border bg-background p-1.5', config.iconClassName)}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                    {index < row.activity.length - 1 && <span className="h-full min-h-8 w-px bg-border" />}
+                  </div>
+                  <div className="pb-4">
+                    <p className="font-medium text-sm">
+                      {config.label}
+                      {item.sequencePosition !== null && row.sequenceTotal > 1
+                        ? ` · Reminder ${item.sequencePosition}`
+                        : ''}
+                    </p>
+                    <p className="text-muted-foreground text-xs">{formatDate(item.occurredAt, timezone)}</p>
+                    {item.scheduledFor && (
+                      <p className="mt-1 text-muted-foreground text-xs">
+                        Scheduled for {formatDate(item.scheduledFor, timezone)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <p className="text-muted-foreground text-sm">
+          <Trans>No reminder activity has been recorded.</Trans>
+        </p>
+      )}
+      <DialogFooter>
+        <Button variant="secondary" onClick={() => onOpenChange(false)}>
+          <Trans>Close</Trans>
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+);
+
+const getActivityConfig = (type: ReminderSchedule['activity'][number]['type']) =>
+  ({
+    SCHEDULE_CREATED: { label: 'Schedule created', icon: CalendarClockIcon, iconClassName: 'text-blue-600' },
+    REMINDER_SUBMITTED: { label: 'Submitted to email provider', icon: SendIcon, iconClassName: 'text-blue-600' },
+    DELIVERY_DELAYED: { label: 'Delivery delayed', icon: Clock3Icon, iconClassName: 'text-amber-600' },
+    DELIVERED: { label: 'Delivered by email provider', icon: CheckCircle2Icon, iconClassName: 'text-green-600' },
+    BOUNCED: { label: 'Email bounced', icon: XCircleIcon, iconClassName: 'text-destructive' },
+    DELIVERY_FAILED: { label: 'Email delivery failed', icon: AlertTriangleIcon, iconClassName: 'text-destructive' },
+    SUPPRESSED: { label: 'Email suppressed', icon: XCircleIcon, iconClassName: 'text-destructive' },
+    CANCELLED: { label: 'Reminder cancelled', icon: XCircleIcon, iconClassName: 'text-muted-foreground' },
+    RECIPIENT_SIGNED: { label: 'Recipient signed', icon: SignatureIcon, iconClassName: 'text-green-600' },
+    DOCUMENT_COMPLETED: { label: 'Document completed', icon: FileCheck2Icon, iconClassName: 'text-green-600' },
+  })[type];
 
 const RescheduleDialog = ({
   row,

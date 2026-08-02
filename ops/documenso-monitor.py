@@ -62,6 +62,8 @@ ERROR_PATTERNS = (
     "smtp error",
     "econnrefused",
     "rate limit exceeded",
+    "resend delivery webhook secret is not configured",
+    "invalid webhook signature",
 )
 
 
@@ -201,6 +203,20 @@ def check() -> list[str]:
     )
     if failed_deliveries is not None and int(failed_deliveries or "0") > 0:
         findings.append(f"{failed_deliveries} scheduled reminder deliveries failed recently")
+
+    unconfirmed_deliveries = query_database(
+        'SELECT count(*) FROM "ScheduledReminderDelivery" delivery '
+        'JOIN "Envelope" envelope ON envelope.id = delivery."envelopeId" '
+        "WHERE delivery.status = 'SENT' "
+        "AND envelope.status = 'PENDING' "
+        "AND (delivery.\"providerStatus\" IS NULL OR delivery.\"providerStatus\" = 'SUBMITTED') "
+        "AND delivery.\"sentAt\" < NOW() - INTERVAL '2 hours' "
+        "AND delivery.\"sentAt\" > NOW() - INTERVAL '7 days';"
+    )
+    if unconfirmed_deliveries is not None and int(unconfirmed_deliveries or "0") > 0:
+        findings.append(
+            f"{unconfirmed_deliveries} pending-document reminder deliveries lack provider confirmation"
+        )
 
     failed_jobs = query_database(
         'SELECT count(*) FROM "BackgroundJob" '

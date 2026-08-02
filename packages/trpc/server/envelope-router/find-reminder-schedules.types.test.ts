@@ -24,6 +24,14 @@ const completedSchedule = {
   sequenceTotal: 1,
   sequenceIntervalDays: null,
   status: 'SUBMITTED' as const,
+  activity: [
+    {
+      type: 'DOCUMENT_COMPLETED' as const,
+      occurredAt: new Date('2026-08-02T00:41:17.293Z'),
+      scheduledFor: null,
+      sequencePosition: null,
+    },
+  ],
   lastActivityAt: new Date('2026-08-01T23:10:19.963Z'),
   lastErrorCode: null,
   lastErrorMessage: null,
