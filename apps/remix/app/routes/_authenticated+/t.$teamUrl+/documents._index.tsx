@@ -9,9 +9,10 @@ import { ExtendedDocumentStatus } from '@documenso/prisma/types/extended-documen
 import { trpc } from '@documenso/trpc/react';
 import type { TFindDocumentsInternalResponse } from '@documenso/trpc/server/document-router/find-documents-internal.types';
 import { ZFindDocumentsInternalRequestSchema } from '@documenso/trpc/server/document-router/find-documents-internal.types';
-import { useHydrated } from '@documenso/ui/lib/use-hydrated';
+import { ClientOnly } from '@documenso/ui/components/client-only';
 import { Avatar, AvatarFallback, AvatarImage } from '@documenso/ui/primitives/avatar';
 import type { RowSelectionState } from '@documenso/ui/primitives/data-table';
+import { Skeleton } from '@documenso/ui/primitives/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@documenso/ui/primitives/tabs';
 import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
@@ -50,7 +51,10 @@ const ZSearchParamsSchema = ZFindDocumentsInternalRequestSchema.pick({
 });
 
 export default function DocumentsPage() {
-  const isHydrated = useHydrated();
+  return <ClientOnly fallback={<DocumentsPageLoadingState />}>{() => <DocumentsPageContent />}</ClientOnly>;
+}
+
+const DocumentsPageContent = () => {
   const organisation = useCurrentOrganisation();
   const team = useCurrentTeam();
 
@@ -96,9 +100,6 @@ export default function DocumentsPage() {
       ...SKIP_QUERY_BATCH_META,
     },
   );
-
-  const hydratedData = isHydrated ? data : undefined;
-  const isTableLoading = !isHydrated || isLoading;
 
   const getTabHref = (value: keyof typeof ExtendedDocumentStatus) => {
     const params = new URLSearchParams(searchParams);
@@ -200,12 +201,12 @@ export default function DocumentsPage() {
 
         <div className="mt-8">
           <div>
-            {isHydrated && data && data.count === 0 ? (
+            {data && data.count === 0 ? (
               <DocumentsTableEmptyState status={findDocumentSearchParams.status || ExtendedDocumentStatus.ALL} />
             ) : (
               <DocumentsTable
-                data={hydratedData}
-                isLoading={isTableLoading}
+                data={data}
+                isLoading={isLoading}
                 isLoadingError={isLoadingError}
                 onMoveDocument={(envelopeId) => {
                   setDocumentToMove(envelopeId);
@@ -272,4 +273,24 @@ export default function DocumentsPage() {
       </div>
     </EnvelopeDropZoneWrapper>
   );
-}
+};
+
+const DocumentsPageLoadingState = () => (
+  <div className="mx-auto w-full max-w-screen-xl px-4 py-8 md:px-8" aria-busy="true">
+    <span className="sr-only">
+      <Trans>Loading documents</Trans>
+    </span>
+    <div className="flex items-center justify-between gap-4">
+      <Skeleton className="h-10 w-32" />
+      <div className="flex gap-3">
+        <Skeleton className="h-10 w-32" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+    </div>
+    <div className="mt-10 flex items-center justify-between gap-6">
+      <Skeleton className="h-12 w-56" />
+      <Skeleton className="h-12 w-full max-w-3xl" />
+    </div>
+    <Skeleton className="mt-8 h-72 w-full rounded-lg" />
+  </div>
+);
