@@ -240,9 +240,10 @@ export const archiveCompletedEnvelopeToGoogleDrive = async (envelopeId: string) 
 
     if (!existingItem) {
       const pdf = await getFileServerSide(item.documentData);
+      const pdfTitle = item.title.toLowerCase().endsWith('.pdf') ? item.title : `${item.title}.pdf`;
       await createDriveFile({
         accessToken,
-        name: safeName(`${String(index + 1).padStart(2, '0')} - ${item.title}.pdf`),
+        name: safeName(`${String(index + 1).padStart(2, '0')} - ${pdfTitle}`),
         parentId: folder.id,
         mimeType: 'application/pdf',
         data: pdf,
