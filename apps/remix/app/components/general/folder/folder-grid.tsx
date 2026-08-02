@@ -2,6 +2,7 @@ import { useCurrentOrganisation } from '@documenso/lib/client-only/providers/org
 import { formatDocumentsPath, formatTemplatesPath } from '@documenso/lib/utils/teams';
 import { trpc } from '@documenso/trpc/react';
 import type { TFolderWithSubfolders } from '@documenso/trpc/server/folder-router/schema';
+import { useHydrated } from '@documenso/ui/lib/use-hydrated';
 import { Skeleton } from '@documenso/ui/primitives/skeleton';
 import { Trans } from '@lingui/react/macro';
 import { FolderType } from '@prisma/client';
@@ -25,6 +26,7 @@ export type FolderGridProps = {
 };
 
 export const FolderGrid = ({ type, parentId }: FolderGridProps) => {
+  const isHydrated = useHydrated();
   const team = useCurrentTeam();
   const organisation = useCurrentOrganisation();
 
@@ -39,6 +41,9 @@ export const FolderGrid = ({ type, parentId }: FolderGridProps) => {
     type,
     parentId,
   });
+
+  const hydratedFoldersData = isHydrated ? foldersData : undefined;
+  const isFolderLoading = !isHydrated || isPending;
 
   const formatBreadCrumbPath = (folderId: string) => {
     const rootPath = type === FolderType.DOCUMENT ? formatDocumentsPath(team.url) : formatTemplatesPath(team.url);
@@ -60,8 +65,8 @@ export const FolderGrid = ({ type, parentId }: FolderGridProps) => {
     return type === FolderType.DOCUMENT ? formatDocumentsPath(team.url) : formatTemplatesPath(team.url);
   };
 
-  const pinnedFolders = foldersData?.folders.filter((folder) => folder.pinned) || [];
-  const unpinnedFolders = foldersData?.folders.filter((folder) => !folder.pinned) || [];
+  const pinnedFolders = hydratedFoldersData?.folders.filter((folder) => folder.pinned) || [];
+  const unpinnedFolders = hydratedFoldersData?.folders.filter((folder) => !folder.pinned) || [];
 
   return (
     <div>
@@ -75,14 +80,14 @@ export const FolderGrid = ({ type, parentId }: FolderGridProps) => {
             <Trans>Home</Trans>
           </Link>
 
-          {isPending && parentId ? (
+          {isFolderLoading && parentId ? (
             <div className="flex items-center">
               <Skeleton className="mx-3 h-4 w-1 rotate-12" />
 
               <Skeleton className="h-4 w-20" />
             </div>
           ) : (
-            foldersData?.breadcrumbs.map((folder) => (
+            hydratedFoldersData?.breadcrumbs.map((folder) => (
               <div key={folder.id} className="flex items-center">
                 <span className="px-3">/</span>
                 <Link to={formatBreadCrumbPath(folder.id)} className="flex items-center">
@@ -104,7 +109,7 @@ export const FolderGrid = ({ type, parentId }: FolderGridProps) => {
         </div>
       </div>
 
-      {isPending ? (
+      {isFolderLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <div key={index} className="h-full rounded-lg border border-border bg-card px-4 py-5">
@@ -125,19 +130,19 @@ export const FolderGrid = ({ type, parentId }: FolderGridProps) => {
             </div>
           ))}
         </div>
-      ) : foldersData && foldersData.folders.length === 0 ? (
+      ) : hydratedFoldersData && hydratedFoldersData.folders.length === 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           <FolderCreateDialog
             type={type}
             trigger={
-              <button>
+              <button type="button">
                 <FolderCardEmpty type={type} />
               </button>
             }
           />
         </div>
       ) : (
-        foldersData && (
+        hydratedFoldersData && (
           <div key="content" className="space-y-4">
             {pinnedFolders.length > 0 && (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -200,7 +205,7 @@ export const FolderGrid = ({ type, parentId }: FolderGridProps) => {
       )}
 
       <FolderMoveDialog
-        foldersData={foldersData?.folders}
+        foldersData={hydratedFoldersData?.folders}
         folder={folderToMove}
         isOpen={isMovingFolder}
         onOpenChange={(open) => {
