@@ -1,5 +1,6 @@
 import { useSession } from '@documenso/lib/client-only/providers/session';
 import { isPersonalLayout } from '@documenso/lib/utils/organisations';
+import { isMemberManagerOrAbove } from '@documenso/lib/utils/teams';
 import { cn } from '@documenso/ui/lib/utils';
 import { Button } from '@documenso/ui/primitives/button';
 import { msg } from '@lingui/core/macro';
@@ -45,6 +46,10 @@ export const AppNavDesktop = ({ className, setIsCommandMenuOpen, ...props }: App
       return [];
     }
 
+    const currentTeamRole =
+      currentTeam?.currentTeamRole ??
+      organisations.flatMap((organisation) => organisation.teams).find((team) => team.url === teamUrl)?.currentTeamRole;
+
     return [
       {
         href: `/t/${teamUrl}/documents`,
@@ -54,6 +59,14 @@ export const AppNavDesktop = ({ className, setIsCommandMenuOpen, ...props }: App
         href: `/t/${teamUrl}/templates`,
         label: msg`Templates`,
       },
+      ...(currentTeamRole && isMemberManagerOrAbove(currentTeamRole)
+        ? [
+            {
+              href: `/t/${teamUrl}/reminders`,
+              label: msg`Reminders`,
+            },
+          ]
+        : []),
     ];
   }, [currentTeam, organisations]);
 

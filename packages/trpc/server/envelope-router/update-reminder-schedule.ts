@@ -12,13 +12,16 @@ export const updateReminderScheduleRoute = authenticatedProcedure
   .input(ZUpdateReminderScheduleRequestSchema)
   .output(ZUpdateReminderScheduleResponseSchema)
   .mutation(async ({ input, ctx }) => {
-    const { envelopeId, recipients, scheduledAt } = input;
+    const { envelopeId, recipients, scheduledAt, timezone, total, intervalDays } = input;
 
     ctx.logger.info({
       input: {
         envelopeId,
         recipients,
         scheduledAt,
+        timezone,
+        total,
+        intervalDays,
       },
     });
 
@@ -26,6 +29,9 @@ export const updateReminderScheduleRoute = authenticatedProcedure
       envelopeId,
       recipients,
       scheduledAt,
+      timezone,
+      total,
+      intervalDays,
       userId: ctx.user.id,
       teamId: ctx.teamId,
     });

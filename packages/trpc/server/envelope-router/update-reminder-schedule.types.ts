@@ -8,7 +8,7 @@ export const updateReminderScheduleMeta: TrpcRouteMeta = {
     method: 'POST',
     path: '/envelope/reminder-schedule',
     summary: 'Update a reminder schedule',
-    description: 'Schedule or cancel a one-off signing reminder for pending envelope recipients.',
+    description: 'Schedule, replace, or cancel a bounded signing-reminder sequence for pending envelope recipients.',
     tags: ['Envelope'],
   },
 };
@@ -17,6 +17,9 @@ export const ZUpdateReminderScheduleRequestSchema = z.object({
   envelopeId: z.string(),
   recipients: z.array(z.number()).min(1),
   scheduledAt: z.date().nullable(),
+  timezone: z.string().min(1).max(100).default('Etc/UTC'),
+  total: z.number().int().min(1).max(5).default(1),
+  intervalDays: z.number().int().min(1).max(30).nullable().default(null),
 });
 
 export const ZUpdateReminderScheduleResponseSchema = ZSuccessResponseSchema.extend({

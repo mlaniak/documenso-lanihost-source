@@ -3,6 +3,7 @@ import {
   getScheduledReminderIdempotencyKey,
   getScheduledReminderMessageId,
   getScheduledReminderRetryAt,
+  isScheduledReminderErrorRetryable,
   MAX_SCHEDULED_REMINDER_DELIVERY_ATTEMPTS,
 } from '@documenso/lib/constants/scheduled-reminder-delivery';
 import { prisma } from '@documenso/prisma';
@@ -67,7 +68,8 @@ export const processScheduledReminderDelivery = async (options: { deliveryId: st
     delivery.envelope.status === DocumentStatus.PENDING &&
     delivery.envelope.deletedAt === null &&
     delivery.recipient.signingStatus === SigningStatus.NOT_SIGNED &&
-    delivery.recipient.role !== RecipientRole.CC;
+    delivery.recipient.role !== RecipientRole.CC &&
+    (!delivery.recipient.expiresAt || delivery.recipient.expiresAt > now);
 
   if (!isEligible) {
     await cancelIneligibleDelivery(delivery);
@@ -97,6 +99,16 @@ export const processScheduledReminderDelivery = async (options: { deliveryId: st
     where: { id: delivery.id },
     data: { providerMessageId },
   });
+
+  const deliveryState = await prisma.scheduledReminderDelivery.findUnique({
+    where: { id: delivery.id },
+    select: { status: true },
+  });
+
+  if (deliveryState?.status !== ScheduledReminderDeliveryStatus.PROCESSING) {
+    io.logger.info(`Scheduled reminder delivery ${deliveryId} was cancelled before provider submission`);
+    return;
+  }
 
   try {
     await resendDocument({
@@ -144,15 +156,25 @@ export const processScheduledReminderDelivery = async (options: { deliveryId: st
         },
       });
 
+      const nextDelivery = await tx.scheduledReminderDelivery.findFirst({
+        where: {
+          recipientId: delivery.recipientId,
+          status: ScheduledReminderDeliveryStatus.PENDING,
+          scheduledAt: { gt: delivery.scheduledAt },
+          ...(delivery.sequenceId ? { sequenceId: delivery.sequenceId } : {}),
+        },
+        orderBy: { scheduledAt: 'asc' },
+      });
+
       await tx.recipient.updateMany({
         where: {
           id: delivery.recipientId,
           scheduledReminderAt: delivery.scheduledAt,
         },
         data: {
-          scheduledReminderAt: null,
-          scheduledReminderCreatedAt: null,
-          scheduledReminderCreatedBy: null,
+          scheduledReminderAt: nextDelivery?.scheduledAt ?? null,
+          scheduledReminderCreatedAt: nextDelivery ? nextDelivery.createdAt : null,
+          scheduledReminderCreatedBy: nextDelivery ? nextDelivery.createdById : null,
         },
       });
 
@@ -192,9 +214,10 @@ export const processScheduledReminderDelivery = async (options: { deliveryId: st
       return;
     }
 
-    const isTerminal = delivery.attemptCount >= MAX_SCHEDULED_REMINDER_DELIVERY_ATTEMPTS;
+    const isRetryable = isScheduledReminderErrorRetryable(error);
+    const isTerminal = !isRetryable || delivery.attemptCount >= MAX_SCHEDULED_REMINDER_DELIVERY_ATTEMPTS;
 
-    await recordDeliveryFailure({ delivery, error, isTerminal });
+    await recordDeliveryFailure({ delivery, error, isTerminal, isRetryable });
 
     const details = getScheduledReminderErrorDetails(error);
     io.logger.error({
@@ -211,8 +234,15 @@ const cancelIneligibleDelivery = async (delivery: ScheduledReminderDeliveryConte
   const cancelledAt = new Date();
 
   await prisma.$transaction(async (tx) => {
-    await tx.scheduledReminderDelivery.update({
-      where: { id: delivery.id },
+    await tx.scheduledReminderDelivery.updateMany({
+      where: delivery.sequenceId
+        ? {
+            sequenceId: delivery.sequenceId,
+            status: {
+              in: [ScheduledReminderDeliveryStatus.PENDING, ScheduledReminderDeliveryStatus.PROCESSING],
+            },
+          }
+        : { id: delivery.id },
       data: {
         status: ScheduledReminderDeliveryStatus.CANCELLED,
         cancelledAt,
@@ -248,8 +278,9 @@ const recordDeliveryFailure = async (options: {
   delivery: ScheduledReminderDeliveryContext;
   error: unknown;
   isTerminal: boolean;
+  isRetryable?: boolean;
 }) => {
-  const { delivery, error, isTerminal } = options;
+  const { delivery, error, isTerminal, isRetryable = false } = options;
   const details = getScheduledReminderErrorDetails(error);
   const failedAt = new Date();
 
@@ -263,6 +294,7 @@ const recordDeliveryFailure = async (options: {
             claimedAt: null,
             lastErrorCode: details.code,
             lastErrorMessage: details.message,
+            retryable: isRetryable,
           }
         : {
             status: ScheduledReminderDeliveryStatus.PENDING,
@@ -270,10 +302,27 @@ const recordDeliveryFailure = async (options: {
             claimedAt: null,
             lastErrorCode: details.code,
             lastErrorMessage: details.message,
+            retryable: true,
           },
     });
 
     if (isTerminal) {
+      if (delivery.sequenceId) {
+        await tx.scheduledReminderDelivery.updateMany({
+          where: {
+            sequenceId: delivery.sequenceId,
+            id: { not: delivery.id },
+            status: ScheduledReminderDeliveryStatus.PENDING,
+          },
+          data: {
+            status: ScheduledReminderDeliveryStatus.CANCELLED,
+            cancelledAt: failedAt,
+            lastErrorCode: 'PREVIOUS_DELIVERY_FAILED',
+            lastErrorMessage: 'The reminder sequence stopped after an earlier delivery failed',
+          },
+        });
+      }
+
       await tx.recipient.updateMany({
         where: { id: delivery.recipientId, scheduledReminderAt: delivery.scheduledAt },
         data: {

@@ -701,6 +701,8 @@ model ScheduledReminderDelivery {
   scheduledAt      DateTime
   nextAttemptAt    DateTime
   attemptCount     Int                             @default(0)
+  manualRetryCount Int                             @default(0)
+  retryable        Boolean                         @default(true)
   claimedAt        DateTime?
   sentAt           DateTime?
   failedAt         DateTime?
@@ -717,6 +719,12 @@ model ScheduledReminderDelivery {
   providerDelayedAt   DateTime?
   providerDeliveredAt DateTime?
   providerFailedAt    DateTime?
+
+  sequenceId           String?
+  sequencePosition     Int     @default(1)
+  sequenceTotal        Int     @default(1)
+  sequenceIntervalDays Int?
+  timezone             String  @default("Etc/UTC") @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -736,6 +744,7 @@ model ScheduledReminderDelivery {
   @@index([recipientId, createdAt])
   @@index([envelopeId, createdAt])
   @@index([createdById])
+  @@index([sequenceId, sequencePosition])
 }
 
 model ScheduledReminderProviderEvent {

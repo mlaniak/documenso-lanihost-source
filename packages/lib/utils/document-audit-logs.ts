@@ -575,6 +575,22 @@ export const formatDocumentAuditLogAction = (i18n: I18n, auditLog: TDocumentAudi
         timeStyle: 'short',
       });
 
+      if (data.retryRequested) {
+        return {
+          anonymous: msg`Reminder retry requested for ${data.recipientEmail}`,
+          you: msg`You requested a reminder retry for ${data.recipientEmail}`,
+          user: msg`${user} requested a reminder retry for ${data.recipientEmail}`,
+        };
+      }
+
+      if (data.sequenceTotal && data.sequenceTotal > 1) {
+        return {
+          anonymous: msg`${data.sequenceTotal} reminders scheduled for ${data.recipientEmail}, starting at ${scheduledAt}`,
+          you: msg`You scheduled ${data.sequenceTotal} reminders for ${data.recipientEmail}, starting at ${scheduledAt}`,
+          user: msg`${user} scheduled ${data.sequenceTotal} reminders for ${data.recipientEmail}, starting at ${scheduledAt}`,
+        };
+      }
+
       return {
         anonymous: msg`Reminder scheduled for ${data.recipientEmail} at ${scheduledAt}`,
         you: msg`You scheduled a reminder for ${data.recipientEmail} at ${scheduledAt}`,

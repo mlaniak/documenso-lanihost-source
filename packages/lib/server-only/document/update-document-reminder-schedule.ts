@@ -3,6 +3,7 @@ import {
   resolveNextReminderAt,
   ZEnvelopeReminderSettings,
 } from '@documenso/lib/constants/envelope-reminder';
+import { getScheduledReminderSequenceDates } from '@documenso/lib/constants/scheduled-reminder-delivery';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '@documenso/lib/types/document-audit-logs';
 import { extractDerivedDocumentEmailSettings } from '@documenso/lib/types/document-email';
@@ -16,6 +17,7 @@ import {
   ScheduledReminderDeliveryStatus,
   SigningStatus,
 } from '@prisma/client';
+import { nanoid } from 'nanoid';
 
 import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';
 import { assertUserNotDisabled } from '../user/assert-user-not-disabled';
@@ -26,6 +28,9 @@ export type UpdateDocumentReminderScheduleOptions = {
   teamId: number;
   recipients: number[];
   scheduledAt: Date | null;
+  timezone?: string;
+  total?: number;
+  intervalDays?: number | null;
 };
 
 export const updateDocumentReminderSchedule = async ({
@@ -34,6 +39,9 @@ export const updateDocumentReminderSchedule = async ({
   teamId,
   recipients,
   scheduledAt,
+  timezone = 'Etc/UTC',
+  total = 1,
+  intervalDays = null,
 }: UpdateDocumentReminderScheduleOptions) => {
   const user = await prisma.user.findFirstOrThrow({
     where: { id: userId },
@@ -47,6 +55,19 @@ export const updateDocumentReminderSchedule = async ({
       message: 'Scheduled reminder time must be in the future',
       statusCode: 400,
     });
+  }
+
+  let sequenceDates: Date[] = [];
+
+  if (scheduledAt) {
+    try {
+      sequenceDates = getScheduledReminderSequenceDates({ scheduledAt, timezone, total, intervalDays });
+    } catch (error) {
+      throw new AppError(AppErrorCode.INVALID_REQUEST, {
+        message: error instanceof Error ? error.message : 'Reminder sequence is invalid',
+        statusCode: 400,
+      });
+    }
   }
 
   const { envelopeWhereInput } = await getEnvelopeWhereInput({
@@ -116,31 +137,35 @@ export const updateDocumentReminderSchedule = async ({
           })
         : null;
 
-      const activeDelivery = await tx.scheduledReminderDelivery.findFirst({
+      const activeDeliveries = await tx.scheduledReminderDelivery.findMany({
         where: {
           recipientId: recipient.id,
           status: {
             in: [ScheduledReminderDeliveryStatus.PENDING, ScheduledReminderDeliveryStatus.PROCESSING],
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ scheduledAt: 'asc' }, { createdAt: 'desc' }],
       });
 
-      if (activeDelivery?.status === ScheduledReminderDeliveryStatus.PROCESSING) {
+      if (activeDeliveries.some((delivery) => delivery.status === ScheduledReminderDeliveryStatus.PROCESSING)) {
         throw new AppError(AppErrorCode.INVALID_REQUEST, {
           message: 'This reminder is already being delivered and can no longer be changed',
           statusCode: 409,
         });
       }
 
-      if (activeDelivery) {
-        await tx.scheduledReminderDelivery.update({
-          where: { id: activeDelivery.id },
+      if (activeDeliveries.length > 0) {
+        await tx.scheduledReminderDelivery.updateMany({
+          where: { id: { in: activeDeliveries.map((delivery) => delivery.id) } },
           data: {
             status: ScheduledReminderDeliveryStatus.CANCELLED,
             cancelledAt: updatedAt,
+            lastErrorCode: 'SCHEDULE_REPLACED',
+            lastErrorMessage: 'The reminder schedule was replaced or cancelled',
           },
         });
+
+        const activeDelivery = activeDeliveries[0];
 
         await tx.documentAuditLog.create({
           data: createDocumentAuditLogData({
@@ -159,26 +184,37 @@ export const updateDocumentReminderSchedule = async ({
         });
       }
 
-      const delivery = scheduledAt
-        ? await tx.scheduledReminderDelivery.create({
-            data: {
-              envelopeId: envelope.id,
-              recipientId: recipient.id,
-              createdById: userId,
-              scheduledAt,
-              nextAttemptAt: scheduledAt,
-            },
-          })
-        : null;
+      const sequenceId = scheduledAt ? nanoid(24) : null;
+      const deliveries = scheduledAt
+        ? await Promise.all(
+            sequenceDates.map((deliveryAt, index) =>
+              tx.scheduledReminderDelivery.create({
+                data: {
+                  envelopeId: envelope.id,
+                  recipientId: recipient.id,
+                  createdById: userId,
+                  scheduledAt: deliveryAt,
+                  nextAttemptAt: deliveryAt,
+                  sequenceId,
+                  sequencePosition: index + 1,
+                  sequenceTotal: sequenceDates.length,
+                  sequenceIntervalDays: sequenceDates.length > 1 ? intervalDays : null,
+                  timezone,
+                },
+              }),
+            ),
+          )
+        : [];
+      const delivery = deliveries[0] ?? null;
 
       await tx.recipient.update({
         where: { id: recipient.id },
         data: scheduledAt
           ? {
-              scheduledReminderAt: scheduledAt,
+              scheduledReminderAt: sequenceDates[0],
               scheduledReminderCreatedAt: updatedAt,
               scheduledReminderCreatedBy: userId,
-              nextReminderAt: getEarliestReminderAt(automaticReminderAt, scheduledAt),
+              nextReminderAt: getEarliestReminderAt(automaticReminderAt, sequenceDates[0]),
             }
           : {
               scheduledReminderAt: null,
@@ -201,6 +237,8 @@ export const updateDocumentReminderSchedule = async ({
               recipientRole: recipient.role,
               scheduledReminderId: delivery.id,
               scheduledAt: delivery.scheduledAt.toISOString(),
+              sequenceTotal: deliveries.length,
+              timezone,
             },
           }),
         });

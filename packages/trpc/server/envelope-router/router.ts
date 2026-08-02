@@ -7,6 +7,7 @@ import { bulkCancelEnvelopesRoute } from './bulk-cancel-envelopes';
 import { bulkDeleteEnvelopesRoute } from './bulk-delete-envelopes';
 import { bulkMoveEnvelopesRoute } from './bulk-move-envelopes';
 import { cancelEnvelopeRoute } from './cancel-envelope';
+import { cancelReminderScheduleRoute } from './cancel-reminder-schedule';
 import { createEnvelopeRoute } from './create-envelope';
 import { createEnvelopeItemsRoute } from './create-envelope-items';
 import { deleteEnvelopeRoute } from './delete-envelope';
@@ -29,6 +30,7 @@ import { reportRecipientRoute } from './envelope-recipients/report-recipient';
 import { updateEnvelopeRecipientsRoute } from './envelope-recipients/update-envelope-recipients';
 import { findEnvelopeAuditLogsRoute } from './find-envelope-audit-logs';
 import { findEnvelopesRoute } from './find-envelopes';
+import { findReminderSchedulesRoute } from './find-reminder-schedules';
 import { getEditorEnvelopeRoute } from './get-editor-envelope';
 import { getEnvelopeRoute } from './get-envelope';
 import { getEnvelopeItemsRoute } from './get-envelope-items';
@@ -36,6 +38,7 @@ import { getEnvelopeItemsByTokenRoute } from './get-envelope-items-by-token';
 import { getEnvelopesByIdsRoute } from './get-envelopes-by-ids';
 import { redistributeEnvelopeRoute } from './redistribute-envelope';
 import { replaceEnvelopeItemPdfRoute } from './replace-envelope-item-pdf';
+import { retryReminderDeliveryRoute } from './retry-reminder-delivery';
 import { saveAsTemplateRoute } from './save-as-template';
 import { setEnvelopeFieldsRoute } from './set-envelope-fields';
 import { setEnvelopeRecipientsRoute } from './set-envelope-recipients';
@@ -113,7 +116,10 @@ export const envelopeRouter = router({
   distribute: distributeEnvelopeRoute,
   redistribute: redistributeEnvelopeRoute,
   reminderSchedule: {
+    find: findReminderSchedulesRoute,
     update: updateReminderScheduleRoute,
+    cancel: cancelReminderScheduleRoute,
+    retry: retryReminderDeliveryRoute,
   },
   signingStatus: signingStatusEnvelopeRoute,
 });

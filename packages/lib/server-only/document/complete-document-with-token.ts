@@ -276,14 +276,14 @@ export const completeDocumentWithToken = async ({
     throw new Error(`Recipient ${recipient.id} has unsigned fields`);
   }
 
-  const activeScheduledReminder = await prisma.scheduledReminderDelivery.findFirst({
+  const activeScheduledReminders = await prisma.scheduledReminderDelivery.findMany({
     where: {
       recipientId: recipient.id,
       status: {
         in: [ScheduledReminderDeliveryStatus.PENDING, ScheduledReminderDeliveryStatus.PROCESSING],
       },
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { scheduledAt: 'asc' },
   });
 
   await prisma.$transaction(async (tx) => {
@@ -303,9 +303,9 @@ export const completeDocumentWithToken = async ({
       },
     });
 
-    if (activeScheduledReminder) {
-      await tx.scheduledReminderDelivery.update({
-        where: { id: activeScheduledReminder.id },
+    if (activeScheduledReminders.length > 0) {
+      await tx.scheduledReminderDelivery.updateMany({
+        where: { id: { in: activeScheduledReminders.map((delivery) => delivery.id) } },
         data: {
           status: ScheduledReminderDeliveryStatus.CANCELLED,
           cancelledAt: new Date(),
@@ -315,21 +315,23 @@ export const completeDocumentWithToken = async ({
         },
       });
 
-      await tx.documentAuditLog.create({
-        data: createDocumentAuditLogData({
-          type: DOCUMENT_AUDIT_LOG_TYPE.REMINDER_CANCELLED,
-          envelopeId: envelope.id,
-          user: { name: recipientName, email: recipientEmail },
-          requestMetadata,
-          data: {
-            recipientEmail,
-            recipientName,
-            recipientId: recipient.id,
-            recipientRole: recipient.role,
-            scheduledReminderId: activeScheduledReminder.id,
-            scheduledAt: activeScheduledReminder.scheduledAt.toISOString(),
-          },
-        }),
+      await tx.documentAuditLog.createMany({
+        data: activeScheduledReminders.map((delivery) =>
+          createDocumentAuditLogData({
+            type: DOCUMENT_AUDIT_LOG_TYPE.REMINDER_CANCELLED,
+            envelopeId: envelope.id,
+            user: { name: recipientName, email: recipientEmail },
+            requestMetadata,
+            data: {
+              recipientEmail,
+              recipientName,
+              recipientId: recipient.id,
+              recipientRole: recipient.role,
+              scheduledReminderId: delivery.id,
+              scheduledAt: delivery.scheduledAt.toISOString(),
+            },
+          }),
+        ),
       });
     }
 

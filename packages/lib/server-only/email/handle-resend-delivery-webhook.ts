@@ -2,13 +2,14 @@ import { verifyResendWebhook } from '@documenso/email/providers/resend-webhook';
 import { normaliseEmailMessageId } from '@documenso/lib/constants/scheduled-reminder-delivery';
 import { prisma } from '@documenso/prisma';
 import type { Prisma } from '@prisma/client';
-import { ScheduledReminderProviderStatus } from '@prisma/client';
+import { ScheduledReminderDeliveryStatus, ScheduledReminderProviderStatus } from '@prisma/client';
 import { z } from 'zod';
 
 import { DOCUMENT_AUDIT_LOG_TYPE } from '../../types/document-audit-logs';
 import { createDocumentAuditLogData } from '../../utils/document-audit-logs';
 import { env } from '../../utils/env';
 import { logger } from '../../utils/logger';
+import { updateRecipientNextReminder } from '../recipient/update-recipient-next-reminder';
 
 const MAX_RESEND_WEBHOOK_BYTES = 64 * 1024;
 
@@ -113,8 +114,19 @@ export const processResendDeliveryEvent = async (webhookId: string, event: Resen
       id: true,
       envelopeId: true,
       scheduledAt: true,
+      sequenceId: true,
       createdBy: { select: { id: true, email: true, name: true } },
-      recipient: { select: { id: true, email: true, name: true, role: true } },
+      recipient: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          sentAt: true,
+          lastReminderSentAt: true,
+          reminderCount: true,
+        },
+      },
     },
   });
 
@@ -127,7 +139,10 @@ export const processResendDeliveryEvent = async (webhookId: string, event: Resen
     return false;
   }
 
-  return await prisma.$transaction(async (tx) => {
+  const stopSequence =
+    delivery.sequenceId !== null && ['email.bounced', 'email.failed', 'email.suppressed'].includes(event.type);
+
+  const result = await prisma.$transaction(async (tx) => {
     const insertedEvent = await tx.scheduledReminderProviderEvent.createMany({
       data: [
         {
@@ -143,7 +158,7 @@ export const processResendDeliveryEvent = async (webhookId: string, event: Resen
     });
 
     if (insertedEvent.count === 0) {
-      return false;
+      return { processed: false, stoppedSequence: false };
     }
 
     await tx.scheduledReminderDelivery.updateMany({
@@ -177,8 +192,45 @@ export const processResendDeliveryEvent = async (webhookId: string, event: Resen
       });
     }
 
-    return true;
+    if (updatedDelivery.count === 1 && stopSequence && delivery.sequenceId) {
+      await tx.scheduledReminderDelivery.updateMany({
+        where: {
+          sequenceId: delivery.sequenceId,
+          status: ScheduledReminderDeliveryStatus.PENDING,
+        },
+        data: {
+          status: ScheduledReminderDeliveryStatus.CANCELLED,
+          cancelledAt: occurredAt,
+          lastErrorCode: 'PERMANENT_PROVIDER_FAILURE',
+          lastErrorMessage: 'The reminder sequence stopped after a permanent email delivery failure',
+          retryable: false,
+        },
+      });
+
+      await tx.recipient.update({
+        where: { id: delivery.recipient.id },
+        data: {
+          scheduledReminderAt: null,
+          scheduledReminderCreatedAt: null,
+          scheduledReminderCreatedBy: null,
+        },
+      });
+    }
+
+    return { processed: true, stoppedSequence: updatedDelivery.count === 1 && stopSequence };
   });
+
+  if (result.stoppedSequence && delivery.recipient.sentAt) {
+    await updateRecipientNextReminder({
+      recipientId: delivery.recipient.id,
+      envelopeId: delivery.envelopeId,
+      sentAt: delivery.recipient.sentAt,
+      lastReminderSentAt: delivery.recipient.lastReminderSentAt,
+      reminderCount: delivery.recipient.reminderCount,
+    });
+  }
+
+  return result.processed;
 };
 
 export const mapResendDeliveryEvent = (event: ResendDeliveryEvent) => {

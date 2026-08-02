@@ -266,7 +266,11 @@ const ZScheduledReminderAuditDataSchema = ZBaseRecipientDataSchema.extend({
 
 export const ZDocumentAuditLogEventReminderScheduledSchema = z.object({
   type: z.literal(DOCUMENT_AUDIT_LOG_TYPE.REMINDER_SCHEDULED),
-  data: ZScheduledReminderAuditDataSchema,
+  data: ZScheduledReminderAuditDataSchema.extend({
+    sequenceTotal: z.number().int().min(1).max(5).optional(),
+    timezone: z.string().optional(),
+    retryRequested: z.boolean().optional(),
+  }),
 });
 
 export const ZDocumentAuditLogEventReminderSentSchema = z.object({

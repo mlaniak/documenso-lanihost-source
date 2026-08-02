@@ -2,6 +2,7 @@ import LogoImage from '@documenso/assets/logo.png';
 import { authClient } from '@documenso/auth/client';
 import { useSession } from '@documenso/lib/client-only/providers/session';
 import { isPersonalLayout } from '@documenso/lib/utils/organisations';
+import { isMemberManagerOrAbove } from '@documenso/lib/utils/teams';
 import { trpc } from '@documenso/trpc/react';
 import { Sheet, SheetContent } from '@documenso/ui/primitives/sheet';
 import { ThemeSwitcher } from '@documenso/ui/primitives/theme-switcher';
@@ -57,6 +58,10 @@ export const AppNavMobile = ({ isMenuOpen, onMenuOpenChange }: AppNavMobileProps
       ];
     }
 
+    const currentTeamRole =
+      currentTeam?.currentTeamRole ??
+      organisations.flatMap((organisation) => organisation.teams).find((team) => team.url === teamUrl)?.currentTeamRole;
+
     return [
       {
         href: `/t/${teamUrl}/documents`,
@@ -66,6 +71,14 @@ export const AppNavMobile = ({ isMenuOpen, onMenuOpenChange }: AppNavMobileProps
         href: `/t/${teamUrl}/templates`,
         text: t`Templates`,
       },
+      ...(currentTeamRole && isMemberManagerOrAbove(currentTeamRole)
+        ? [
+            {
+              href: `/t/${teamUrl}/reminders`,
+              text: t`Reminders`,
+            },
+          ]
+        : []),
       {
         href: '/inbox',
         text: t`Inbox`,
@@ -102,6 +115,7 @@ export const AppNavMobile = ({ isMenuOpen, onMenuOpenChange }: AppNavMobileProps
           ))}
 
           <button
+            type="button"
             className="font-semibold text-2xl text-foreground hover:text-foreground/80"
             onClick={async () => authClient.signOut()}
           >

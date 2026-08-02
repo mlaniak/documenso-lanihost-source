@@ -5,6 +5,8 @@ import {
   getScheduledReminderIdempotencyKey,
   getScheduledReminderMessageId,
   getScheduledReminderRetryAt,
+  getScheduledReminderSequenceDates,
+  isScheduledReminderErrorRetryable,
   MAX_SCHEDULED_REMINDER_DELIVERY_ATTEMPTS,
   normaliseEmailMessageId,
 } from './scheduled-reminder-delivery';
@@ -41,5 +43,36 @@ describe('scheduled reminder delivery', () => {
       code: 'SMTP_TEMPORARY',
       message: 'x'.repeat(500),
     });
+  });
+});
+
+describe('getScheduledReminderSequenceDates', () => {
+  it('preserves the local wall-clock time across daylight-saving changes', () => {
+    const dates = getScheduledReminderSequenceDates({
+      scheduledAt: new Date('2026-10-31T14:30:00.000Z'),
+      timezone: 'America/Chicago',
+      total: 3,
+      intervalDays: 1,
+    });
+
+    expect(dates.map((date) => date.toISOString())).toEqual([
+      '2026-10-31T14:30:00.000Z',
+      '2026-11-01T15:30:00.000Z',
+      '2026-11-02T15:30:00.000Z',
+    ]);
+  });
+});
+
+describe('isScheduledReminderErrorRetryable', () => {
+  it('retries transient provider and network failures', () => {
+    expect(isScheduledReminderErrorRetryable(Object.assign(new Error('rate limited'), { statusCode: 429 }))).toBe(true);
+    expect(isScheduledReminderErrorRetryable(Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' }))).toBe(true);
+  });
+
+  it('does not retry permanent recipient failures', () => {
+    expect(isScheduledReminderErrorRetryable(Object.assign(new Error('Invalid recipient'), { statusCode: 422 }))).toBe(
+      false,
+    );
+    expect(isScheduledReminderErrorRetryable(new Error('Recipient address suppressed'))).toBe(false);
   });
 });

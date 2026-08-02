@@ -1,5 +1,5 @@
 import { prisma } from '@documenso/prisma';
-import { SigningStatus, WebhookTriggerEvents } from '@prisma/client';
+import { ScheduledReminderDeliveryStatus, SigningStatus, WebhookTriggerEvents } from '@prisma/client';
 
 import { triggerWebhook } from '../../../server-only/webhooks/trigger/trigger-webhook';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '../../../types/document-audit-logs';
@@ -46,6 +46,38 @@ export const run = async ({ payload, io }: { payload: TProcessRecipientExpiredJo
   });
 
   const { envelope } = recipient;
+
+  await io.runTask('cancel-scheduled-reminders', async () => {
+    const cancelledAt = new Date();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.scheduledReminderDelivery.updateMany({
+        where: {
+          recipientId: recipient.id,
+          status: {
+            in: [ScheduledReminderDeliveryStatus.PENDING, ScheduledReminderDeliveryStatus.PROCESSING],
+          },
+        },
+        data: {
+          status: ScheduledReminderDeliveryStatus.CANCELLED,
+          cancelledAt,
+          claimedAt: null,
+          lastErrorCode: 'RECIPIENT_EXPIRED',
+          lastErrorMessage: 'The recipient signing window expired before delivery',
+        },
+      });
+
+      await tx.recipient.update({
+        where: { id: recipient.id },
+        data: {
+          nextReminderAt: null,
+          scheduledReminderAt: null,
+          scheduledReminderCreatedAt: null,
+          scheduledReminderCreatedBy: null,
+        },
+      });
+    });
+  });
 
   io.logger.info(`Recipient ${recipientId} (${recipient.email}) expired on envelope ${recipient.envelopeId}`);
 
