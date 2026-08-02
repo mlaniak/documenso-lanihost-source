@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  getScheduledReminderDeliveryHealth,
   getScheduledReminderErrorDetails,
   getScheduledReminderIdempotencyKey,
   getScheduledReminderMessageId,
@@ -42,6 +43,27 @@ describe('scheduled reminder delivery', () => {
     expect(getScheduledReminderErrorDetails(error)).toEqual({
       code: 'SMTP_TEMPORARY',
       message: 'x'.repeat(500),
+    });
+  });
+
+  it('summarises current delivery health without exposing recipient details', () => {
+    expect(
+      getScheduledReminderDeliveryHealth([
+        'SCHEDULED',
+        'SENDING',
+        'SUBMITTED',
+        'DELAYED',
+        'DELIVERED',
+        'NEEDS_ATTENTION',
+        'PERMANENT_FAILURE',
+        'CANCELLED',
+      ]),
+    ).toEqual({
+      scheduled: 1,
+      sent: 3,
+      delivered: 1,
+      failed: 2,
+      stopped: 1,
     });
   });
 });

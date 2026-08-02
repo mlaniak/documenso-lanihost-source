@@ -10,6 +10,52 @@ export const MAX_SCHEDULED_REMINDER_MANUAL_RETRIES = 1;
 
 export const SCHEDULED_REMINDER_CLAIM_TIMEOUT_MINUTES = 15;
 
+export type ScheduledReminderHealthStatus =
+  | 'SCHEDULED'
+  | 'SENDING'
+  | 'SUBMITTED'
+  | 'DELAYED'
+  | 'DELIVERED'
+  | 'NEEDS_ATTENTION'
+  | 'PERMANENT_FAILURE'
+  | 'CANCELLED';
+
+export type ScheduledReminderDeliveryHealth = {
+  scheduled: number;
+  sent: number;
+  delivered: number;
+  failed: number;
+  stopped: number;
+};
+
+export const getScheduledReminderDeliveryHealth = (
+  statuses: readonly ScheduledReminderHealthStatus[],
+): ScheduledReminderDeliveryHealth => {
+  const health: ScheduledReminderDeliveryHealth = {
+    scheduled: 0,
+    sent: 0,
+    delivered: 0,
+    failed: 0,
+    stopped: 0,
+  };
+
+  for (const status of statuses) {
+    if (status === 'SCHEDULED') {
+      health.scheduled += 1;
+    } else if (status === 'SENDING' || status === 'SUBMITTED' || status === 'DELAYED') {
+      health.sent += 1;
+    } else if (status === 'DELIVERED') {
+      health.delivered += 1;
+    } else if (status === 'NEEDS_ATTENTION' || status === 'PERMANENT_FAILURE') {
+      health.failed += 1;
+    } else {
+      health.stopped += 1;
+    }
+  }
+
+  return health;
+};
+
 export const getScheduledReminderMessageId = (deliveryId: string, appUrl: string): string => {
   const hostname = new URL(appUrl).hostname.toLowerCase();
 

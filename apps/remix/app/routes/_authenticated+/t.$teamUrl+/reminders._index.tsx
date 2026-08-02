@@ -1,3 +1,4 @@
+import { getScheduledReminderDeliveryHealth } from '@documenso/lib/constants/scheduled-reminder-delivery';
 import { AppError } from '@documenso/lib/errors/app-error';
 import { trpc } from '@documenso/trpc/react';
 import type { TFindReminderSchedulesResponse } from '@documenso/trpc/server/envelope-router/find-reminder-schedules.types';
@@ -135,6 +136,11 @@ export default function ReminderSchedulesPage() {
     });
   }, [filter, schedules.data, search]);
 
+  const deliveryHealth = useMemo(
+    () => getScheduledReminderDeliveryHealth((schedules.data?.data ?? []).map((row) => row.status)),
+    [schedules.data],
+  );
+
   const columns = useMemo<DataTableColumnDef<ReminderSchedule>[]>(
     () => [
       {
@@ -237,6 +243,13 @@ export default function ReminderSchedulesPage() {
         </div>
       </div>
 
+      <DeliveryHealthSummary
+        health={deliveryHealth}
+        isLoading={schedules.isLoading}
+        activeFilter={filter}
+        onFilterChange={setFilter}
+      />
+
       <div className="mt-8 flex flex-col gap-4">
         <div className="flex flex-wrap gap-1 rounded-md bg-muted p-1">
           {(['ALL', 'SCHEDULED', 'SENDING', 'DELIVERED', 'NEEDS_ATTENTION', 'CANCELLED'] as const).map((value) => (
@@ -307,6 +320,102 @@ const NextDelivery = ({ row }: { row: ReminderSchedule }) => {
         <p>Last activity: {formatDate(row.lastActivityAt, row.timezone)}</p>
       </TooltipContent>
     </Tooltip>
+  );
+};
+
+type DeliveryHealthSummaryProps = {
+  health: ReturnType<typeof getScheduledReminderDeliveryHealth>;
+  isLoading: boolean;
+  activeFilter: ReminderFilter;
+  onFilterChange: (filter: ReminderFilter) => void;
+};
+
+const DeliveryHealthSummary = ({ health, isLoading, activeFilter, onFilterChange }: DeliveryHealthSummaryProps) => {
+  const { t } = useLingui();
+  const cards = [
+    {
+      key: 'sent',
+      label: t`Sent / in transit`,
+      description: t`Accepted or moving through delivery`,
+      value: health.sent,
+      filter: 'SENDING' as const,
+      icon: SendIcon,
+      iconClassName: 'text-blue-600 dark:text-blue-300',
+    },
+    {
+      key: 'delivered',
+      label: t`Delivered`,
+      description: t`Confirmed by the email provider`,
+      value: health.delivered,
+      filter: 'DELIVERED' as const,
+      icon: CheckCircle2Icon,
+      iconClassName: 'text-green-600 dark:text-green-400',
+    },
+    {
+      key: 'failed',
+      label: t`Needs attention`,
+      description: t`Retryable or permanent failures`,
+      value: health.failed,
+      filter: 'NEEDS_ATTENTION' as const,
+      icon: AlertTriangleIcon,
+      iconClassName: health.failed > 0 ? 'text-destructive' : 'text-muted-foreground',
+    },
+    {
+      key: 'stopped',
+      label: t`Stopped`,
+      description: t`Cancelled by a user or stop rule`,
+      value: health.stopped,
+      filter: 'CANCELLED' as const,
+      icon: XCircleIcon,
+      iconClassName: 'text-muted-foreground',
+    },
+  ];
+
+  return (
+    <section className="mt-6" aria-labelledby="delivery-health-heading" aria-busy={isLoading}>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 id="delivery-health-heading" className="font-medium text-lg">
+            <Trans>Delivery health</Trans>
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            <Trans>Current reminder outcomes. Recipient details remain in the table below.</Trans>
+          </p>
+        </div>
+        <p className="text-muted-foreground text-sm">
+          <Trans>{health.scheduled} scheduled and waiting</Trans>
+        </p>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {cards.map((card) => {
+          const Icon = card.icon;
+          const isActive = activeFilter === card.filter;
+
+          return (
+            <button
+              key={card.key}
+              type="button"
+              className={cn(
+                'rounded-lg border bg-card p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                isActive && 'border-primary bg-muted/40',
+              )}
+              aria-pressed={isActive}
+              onClick={() => onFilterChange(isActive ? 'ALL' : card.filter)}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium text-sm">{card.label}</p>
+                  <p className="mt-1 text-muted-foreground text-xs">{card.description}</p>
+                </div>
+                <Icon className={cn('h-5 w-5 shrink-0', card.iconClassName)} />
+              </div>
+              <p className="mt-3 font-semibold text-2xl tabular-nums">{isLoading ? '—' : card.value}</p>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 };
 

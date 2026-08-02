@@ -9,6 +9,7 @@ import { ExtendedDocumentStatus } from '@documenso/prisma/types/extended-documen
 import { trpc } from '@documenso/trpc/react';
 import type { TFindDocumentsInternalResponse } from '@documenso/trpc/server/document-router/find-documents-internal.types';
 import { ZFindDocumentsInternalRequestSchema } from '@documenso/trpc/server/document-router/find-documents-internal.types';
+import { useHydrated } from '@documenso/ui/lib/use-hydrated';
 import { Avatar, AvatarFallback, AvatarImage } from '@documenso/ui/primitives/avatar';
 import type { RowSelectionState } from '@documenso/ui/primitives/data-table';
 import { Tabs, TabsList, TabsTrigger } from '@documenso/ui/primitives/tabs';
@@ -49,6 +50,7 @@ const ZSearchParamsSchema = ZFindDocumentsInternalRequestSchema.pick({
 });
 
 export default function DocumentsPage() {
+  const isHydrated = useHydrated();
   const organisation = useCurrentOrganisation();
   const team = useCurrentTeam();
 
@@ -94,6 +96,9 @@ export default function DocumentsPage() {
       ...SKIP_QUERY_BATCH_META,
     },
   );
+
+  const hydratedData = isHydrated ? data : undefined;
+  const isTableLoading = !isHydrated || isLoading;
 
   const getTabHref = (value: keyof typeof ExtendedDocumentStatus) => {
     const params = new URLSearchParams(searchParams);
@@ -195,12 +200,12 @@ export default function DocumentsPage() {
 
         <div className="mt-8">
           <div>
-            {data && data.count === 0 ? (
+            {isHydrated && data && data.count === 0 ? (
               <DocumentsTableEmptyState status={findDocumentSearchParams.status || ExtendedDocumentStatus.ALL} />
             ) : (
               <DocumentsTable
-                data={data}
-                isLoading={isLoading}
+                data={hydratedData}
+                isLoading={isTableLoading}
                 isLoadingError={isLoadingError}
                 onMoveDocument={(envelopeId) => {
                   setDocumentToMove(envelopeId);
