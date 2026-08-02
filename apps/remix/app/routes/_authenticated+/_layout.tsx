@@ -3,6 +3,7 @@ import { OrganisationProvider } from '@documenso/lib/client-only/providers/organ
 import { useSession } from '@documenso/lib/client-only/providers/session';
 import { getSiteSettings } from '@documenso/lib/server-only/site-settings/get-site-settings';
 import { SITE_SETTINGS_BANNER_ID } from '@documenso/lib/server-only/site-settings/schemas/banner';
+import { ClientOnly } from '@documenso/ui/components/client-only';
 import { cn } from '@documenso/ui/lib/utils';
 import { Button } from '@documenso/ui/primitives/button';
 import { msg } from '@lingui/core/macro';
@@ -116,7 +117,11 @@ export default function Layout({ loaderData, params, matches }: Route.ComponentP
 
         {banner && !hideHeader && <AppBanner banner={banner} />}
 
-        {!hideHeader && <Header />}
+        {!hideHeader && (
+          <ClientOnly fallback={<div className="h-16 border-b border-b-transparent" aria-hidden="true" />}>
+            {() => <Header />}
+          </ClientOnly>
+        )}
 
         <main
           className={cn({
