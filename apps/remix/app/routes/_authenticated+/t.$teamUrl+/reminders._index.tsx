@@ -16,6 +16,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@documenso/ui/primitives/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@documenso/ui/primitives/dropdown-menu';
 import { Input } from '@documenso/ui/primitives/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@documenso/ui/primitives/tooltip';
 import { useToast } from '@documenso/ui/primitives/use-toast';
@@ -26,8 +34,12 @@ import {
   CalendarClockIcon,
   CheckCircle2Icon,
   Clock3Icon,
+  DownloadIcon,
+  EyeIcon,
   Loader2Icon,
+  MoreHorizontalIcon,
   RefreshCwIcon,
+  ScrollTextIcon,
   SearchIcon,
   SendIcon,
   ShieldCheckIcon,
@@ -36,6 +48,8 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
+import { EnvelopeDownloadDialog } from '~/components/dialogs/envelope-download-dialog';
+import { DocumentStatus as DocumentStatusComponent } from '~/components/general/document/document-status';
 import { useCurrentTeam } from '~/providers/team';
 import { appMetaTags } from '~/utils/meta';
 
@@ -56,7 +70,13 @@ export default function ReminderSchedulesPage() {
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<ReminderSchedule | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const schedules = trpc.envelope.reminderSchedule.find.useQuery({ limit: 500 });
+  const schedules = trpc.envelope.reminderSchedule.find.useQuery(
+    { limit: 500 },
+    {
+      refetchInterval: 30_000,
+      refetchIntervalInBackground: false,
+    },
+  );
   const cancelSchedule = trpc.envelope.reminderSchedule.cancel.useMutation();
   const retryDelivery = trpc.envelope.reminderSchedule.retry.useMutation();
   const scheduleData = isHydrated ? (schedules.data?.data ?? []) : [];
@@ -187,7 +207,22 @@ export default function ReminderSchedulesPage() {
           ),
       },
       {
-        header: t`Status`,
+        header: t`Document status`,
+        cell: ({ row }) => (
+          <div>
+            <DocumentStatusComponent status={row.original.documentStatus} />
+            {row.original.documentCompletedAt && (
+              <p className="mt-1 text-muted-foreground text-xs">
+                <Trans>
+                  Completed {formatDate(row.original.documentCompletedAt, localTimezone ?? row.original.timezone)}
+                </Trans>
+              </p>
+            )}
+          </div>
+        ),
+      },
+      {
+        header: t`Email delivery`,
         cell: ({ row }) => <ReminderStatus row={row.original} />,
       },
       {
@@ -196,39 +231,79 @@ export default function ReminderSchedulesPage() {
           const isBusy = busyId === row.original.id;
 
           return (
-            <div className="flex flex-wrap items-center gap-2">
-              {row.original.canRetry && (
-                <Button size="sm" variant="outline" disabled={isBusy} onClick={() => void onRetry(row.original)}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" disabled={isBusy}>
                   {isBusy ? (
                     <Loader2Icon className="mr-1 h-4 w-4 animate-spin" />
                   ) : (
-                    <RefreshCwIcon className="mr-1 h-4 w-4" />
+                    <MoreHorizontalIcon className="mr-1 h-4 w-4" />
                   )}
-                  <Trans>Retry now</Trans>
+                  <Trans>Actions</Trans>
                 </Button>
-              )}
-              {row.original.canReschedule && (
-                <Button size="sm" variant="outline" disabled={isBusy} onClick={() => setEditing(row.original)}>
-                  <CalendarClockIcon className="mr-1 h-4 w-4" />
-                  <Trans>Reschedule</Trans>
-                </Button>
-              )}
-              {row.original.canCancel && (
-                <Button size="sm" variant="outline" disabled={isBusy} onClick={() => void onCancel(row.original)}>
-                  {isBusy ? (
-                    <Loader2Icon className="mr-1 h-4 w-4 animate-spin" />
-                  ) : (
-                    <XCircleIcon className="mr-1 h-4 w-4" />
-                  )}
-                  <Trans>Cancel</Trans>
-                </Button>
-              )}
-            </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-52" align="end" forceMount>
+                <DropdownMenuLabel>
+                  <Trans>Document</Trans>
+                </DropdownMenuLabel>
+                <DropdownMenuItem asChild>
+                  <Link to={`/t/${team.url}/documents/${row.original.envelopeId}`}>
+                    <EyeIcon className="mr-2 h-4 w-4" />
+                    <Trans>View document</Trans>
+                  </Link>
+                </DropdownMenuItem>
+                <EnvelopeDownloadDialog
+                  envelopeId={row.original.envelopeId}
+                  envelopeStatus={row.original.documentStatus}
+                  trigger={
+                    <DropdownMenuItem asChild onSelect={(event) => event.preventDefault()}>
+                      <div>
+                        <DownloadIcon className="mr-2 h-4 w-4" />
+                        <Trans>Download</Trans>
+                      </div>
+                    </DropdownMenuItem>
+                  }
+                />
+                <DropdownMenuItem asChild>
+                  <Link to={`/t/${team.url}/documents/${row.original.envelopeId}/logs`}>
+                    <ScrollTextIcon className="mr-2 h-4 w-4" />
+                    <Trans>Audit logs</Trans>
+                  </Link>
+                </DropdownMenuItem>
+
+                {(row.original.canRetry || row.original.canReschedule || row.original.canCancel) && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>
+                      <Trans>Reminder</Trans>
+                    </DropdownMenuLabel>
+                  </>
+                )}
+                {row.original.canRetry && (
+                  <DropdownMenuItem disabled={isBusy} onSelect={() => void onRetry(row.original)}>
+                    <RefreshCwIcon className="mr-2 h-4 w-4" />
+                    <Trans>Retry now</Trans>
+                  </DropdownMenuItem>
+                )}
+                {row.original.canReschedule && (
+                  <DropdownMenuItem disabled={isBusy} onSelect={() => setEditing(row.original)}>
+                    <CalendarClockIcon className="mr-2 h-4 w-4" />
+                    <Trans>Reschedule</Trans>
+                  </DropdownMenuItem>
+                )}
+                {row.original.canCancel && (
+                  <DropdownMenuItem disabled={isBusy} onSelect={() => void onCancel(row.original)}>
+                    <XCircleIcon className="mr-2 h-4 w-4" />
+                    <Trans>Cancel remaining</Trans>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           );
         },
       },
     ],
-    [busyId, team.url],
+    [busyId, localTimezone, team.url],
   );
 
   return (
@@ -389,7 +464,7 @@ const DeliveryHealthSummary = ({ health, isLoading, activeFilter, onFilterChange
             <Trans>Delivery health</Trans>
           </h2>
           <p className="text-muted-foreground text-sm">
-            <Trans>Current reminder outcomes. Recipient details remain in the table below.</Trans>
+            <Trans>Reminder email outcomes. Document signing status appears separately in the table below.</Trans>
           </p>
         </div>
         <p className="text-muted-foreground text-sm">

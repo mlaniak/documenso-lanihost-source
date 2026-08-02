@@ -26,7 +26,7 @@ export const findReminderSchedulesRoute = authenticatedProcedure
     const deliveries = await prisma.scheduledReminderDelivery.findMany({
       where: { envelope: { teamId: ctx.teamId } },
       include: {
-        envelope: { select: { id: true, secondaryId: true, title: true, status: true } },
+        envelope: { select: { id: true, secondaryId: true, title: true, status: true, completedAt: true } },
         recipient: { select: { id: true, name: true, email: true, signingStatus: true, expiresAt: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -65,6 +65,8 @@ export const findReminderSchedulesRoute = authenticatedProcedure
           envelopeId: primary.envelope.id,
           envelopeSecondaryId: primary.envelope.secondaryId,
           documentTitle: primary.envelope.title,
+          documentStatus: primary.envelope.status,
+          documentCompletedAt: primary.envelope.completedAt,
           recipient: {
             id: primary.recipient.id,
             name: primary.recipient.name,

@@ -1,3 +1,4 @@
+import { DocumentStatus } from '@prisma/client';
 import { z } from 'zod';
 
 import type { TrpcRouteMeta } from '../trpc';
@@ -36,6 +37,8 @@ export const ZFindReminderSchedulesResponseSchema = z.object({
       envelopeId: z.string(),
       envelopeSecondaryId: z.string(),
       documentTitle: z.string(),
+      documentStatus: z.nativeEnum(DocumentStatus),
+      documentCompletedAt: z.date().nullable(),
       recipient: z.object({
         id: z.number(),
         name: z.string(),
