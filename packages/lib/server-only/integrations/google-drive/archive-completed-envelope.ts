@@ -36,7 +36,10 @@ const getAccessToken = async () => {
   const tokenUri = credentials.token_uri || 'https://oauth2.googleapis.com/token';
   const now = Math.floor(Date.now() / 1000);
   const privateKey = await importPKCS8(credentials.private_key, 'RS256');
-  const assertion = await new SignJWT({ scope: 'https://www.googleapis.com/auth/drive.file' })
+  // The archive destination is an existing folder shared with the service account.
+  // `drive.file` only exposes files created or explicitly opened by this app, so it
+  // cannot discover a folder that an administrator shares after deployment.
+  const assertion = await new SignJWT({ scope: 'https://www.googleapis.com/auth/drive' })
     .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
     .setIssuer(credentials.client_email)
     .setSubject(credentials.client_email)
