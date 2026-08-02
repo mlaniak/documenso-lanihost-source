@@ -2,7 +2,7 @@ import { getScheduledReminderDeliveryHealth } from '@documenso/lib/constants/sch
 import { AppError } from '@documenso/lib/errors/app-error';
 import { trpc } from '@documenso/trpc/react';
 import type { TFindReminderSchedulesResponse } from '@documenso/trpc/server/envelope-router/find-reminder-schedules.types';
-import { useHydrated } from '@documenso/ui/lib/use-hydrated';
+import { ClientOnly } from '@documenso/ui/components/client-only';
 import { cn } from '@documenso/ui/lib/utils';
 import { Badge } from '@documenso/ui/primitives/badge';
 import { Button } from '@documenso/ui/primitives/button';
@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from '@documenso/ui/primitives/dropdown-menu';
 import { Input } from '@documenso/ui/primitives/input';
+import { Skeleton } from '@documenso/ui/primitives/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@documenso/ui/primitives/tooltip';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 import { msg } from '@lingui/core/macro';
@@ -64,7 +65,12 @@ export function meta() {
 }
 
 export default function ReminderSchedulesPage() {
-  const isHydrated = useHydrated();
+  return (
+    <ClientOnly fallback={<ReminderSchedulesPageLoadingState />}>{() => <ReminderSchedulesPageContent />}</ClientOnly>
+  );
+}
+
+const ReminderSchedulesPageContent = () => {
   const { t } = useLingui();
   const { toast } = useToast();
   const team = useCurrentTeam();
@@ -83,9 +89,9 @@ export default function ReminderSchedulesPage() {
   );
   const cancelSchedule = trpc.envelope.reminderSchedule.cancel.useMutation();
   const retryDelivery = trpc.envelope.reminderSchedule.retry.useMutation();
-  const scheduleData = isHydrated ? (schedules.data?.data ?? []) : [];
-  const isScheduleDataLoading = !isHydrated || schedules.isLoading;
-  const localTimezone = isHydrated ? Intl.DateTimeFormat().resolvedOptions().timeZone : null;
+  const scheduleData = schedules.data?.data ?? [];
+  const isScheduleDataLoading = schedules.isLoading;
+  const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const refresh = async () => {
     await Promise.allSettled([
@@ -393,7 +399,23 @@ export default function ReminderSchedulesPage() {
       />
     </div>
   );
-}
+};
+
+const ReminderSchedulesPageLoadingState = () => (
+  <div className="mx-auto w-full max-w-screen-xl px-4 py-8 md:px-8" aria-busy="true">
+    <span className="sr-only">
+      <Trans>Loading reminders</Trans>
+    </span>
+    <Skeleton className="h-12 w-72" />
+    <div className="mt-8 grid gap-4 md:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <Skeleton key={index} className="h-36 rounded-lg" />
+      ))}
+    </div>
+    <Skeleton className="mt-8 h-12 w-full rounded-lg" />
+    <Skeleton className="mt-6 h-64 w-full rounded-lg" />
+  </div>
+);
 
 const NextDelivery = ({ row, timezone }: { row: ReminderSchedule; timezone: string }) => {
   const date = row.nextDeliveryAt ?? row.scheduledAt;
