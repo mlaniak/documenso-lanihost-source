@@ -2,6 +2,7 @@ import { getScheduledReminderDeliveryHealth } from '@documenso/lib/constants/sch
 import { AppError } from '@documenso/lib/errors/app-error';
 import { trpc } from '@documenso/trpc/react';
 import type { TFindReminderSchedulesResponse } from '@documenso/trpc/server/envelope-router/find-reminder-schedules.types';
+import { useHydrated } from '@documenso/ui/lib/use-hydrated';
 import { cn } from '@documenso/ui/lib/utils';
 import { Badge } from '@documenso/ui/primitives/badge';
 import { Button } from '@documenso/ui/primitives/button';
@@ -46,6 +47,7 @@ export function meta() {
 }
 
 export default function ReminderSchedulesPage() {
+  const isHydrated = useHydrated();
   const { t } = useLingui();
   const { toast } = useToast();
   const team = useCurrentTeam();
@@ -57,6 +59,9 @@ export default function ReminderSchedulesPage() {
   const schedules = trpc.envelope.reminderSchedule.find.useQuery({ limit: 500 });
   const cancelSchedule = trpc.envelope.reminderSchedule.cancel.useMutation();
   const retryDelivery = trpc.envelope.reminderSchedule.retry.useMutation();
+  const scheduleData = isHydrated ? (schedules.data?.data ?? []) : [];
+  const isScheduleDataLoading = !isHydrated || schedules.isLoading;
+  const localTimezone = isHydrated ? Intl.DateTimeFormat().resolvedOptions().timeZone : null;
 
   const refresh = async () => {
     await Promise.allSettled([
@@ -113,7 +118,7 @@ export default function ReminderSchedulesPage() {
   const rows = useMemo(() => {
     const searchValue = search.trim().toLowerCase();
 
-    return (schedules.data?.data ?? []).filter((row) => {
+    return scheduleData.filter((row) => {
       const matchesSearch =
         !searchValue ||
         [row.documentTitle, row.recipient.name, row.recipient.email].some((value) =>
@@ -134,11 +139,11 @@ export default function ReminderSchedulesPage() {
 
       return row.status === filter;
     });
-  }, [filter, schedules.data, search]);
+  }, [filter, scheduleData, search]);
 
   const deliveryHealth = useMemo(
-    () => getScheduledReminderDeliveryHealth((schedules.data?.data ?? []).map((row) => row.status)),
-    [schedules.data],
+    () => getScheduledReminderDeliveryHealth(scheduleData.map((row) => row.status)),
+    [scheduleData],
   );
 
   const columns = useMemo<DataTableColumnDef<ReminderSchedule>[]>(
@@ -245,7 +250,7 @@ export default function ReminderSchedulesPage() {
 
       <DeliveryHealthSummary
         health={deliveryHealth}
-        isLoading={schedules.isLoading}
+        isLoading={isScheduleDataLoading}
         activeFilter={filter}
         onFilterChange={setFilter}
       />
@@ -276,14 +281,14 @@ export default function ReminderSchedulesPage() {
             />
           </div>
           <Badge variant="neutral" size="large">
-            {Intl.DateTimeFormat().resolvedOptions().timeZone}
+            {localTimezone ?? <Trans>Local timezone</Trans>}
           </Badge>
         </div>
 
         <DataTable
           columns={columns}
           data={rows}
-          skeleton={{ enable: schedules.isLoading, rows: 5 }}
+          skeleton={{ enable: isScheduleDataLoading, rows: 5 }}
           error={{ enable: schedules.isError }}
           emptyState={<Trans>No reminder schedules match these filters.</Trans>}
         />
@@ -292,7 +297,12 @@ export default function ReminderSchedulesPage() {
         </p>
       </div>
 
-      <RescheduleDialog row={editing} onOpenChange={(open) => !open && setEditing(null)} onSaved={refresh} />
+      <RescheduleDialog
+        row={editing}
+        localTimezone={localTimezone}
+        onOpenChange={(open) => !open && setEditing(null)}
+        onSaved={refresh}
+      />
     </div>
   );
 }
@@ -451,16 +461,17 @@ const ReminderStatus = ({ row }: { row: ReminderSchedule }) => {
 
 const RescheduleDialog = ({
   row,
+  localTimezone,
   onOpenChange,
   onSaved,
 }: {
   row: ReminderSchedule | null;
+  localTimezone: string | null;
   onOpenChange: (open: boolean) => void;
   onSaved: () => Promise<void>;
 }) => {
   const { t } = useLingui();
   const { toast } = useToast();
-  const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [scheduledAt, setScheduledAt] = useState('');
   const [total, setTotal] = useState(1);
   const [intervalDays, setIntervalDays] = useState(3);
@@ -477,7 +488,7 @@ const RescheduleDialog = ({
   }, [row]);
 
   const save = async () => {
-    if (!row || !scheduledAt) {
+    if (!row || !scheduledAt || !localTimezone) {
       return;
     }
 
@@ -522,7 +533,7 @@ const RescheduleDialog = ({
             <span className="font-medium">
               <Trans>Timezone</Trans>
             </span>
-            <Input value={localTimezone} readOnly />
+            <Input value={localTimezone ?? ''} readOnly />
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block space-y-1 text-sm">
@@ -559,7 +570,11 @@ const RescheduleDialog = ({
           <Button variant="secondary" disabled={updateSchedule.isPending} onClick={() => onOpenChange(false)}>
             <Trans>Cancel</Trans>
           </Button>
-          <Button loading={updateSchedule.isPending} disabled={!scheduledAt} onClick={() => void save()}>
+          <Button
+            loading={updateSchedule.isPending}
+            disabled={!scheduledAt || !localTimezone}
+            onClick={() => void save()}
+          >
             {updateSchedule.isPending ? <Trans>Saving...</Trans> : <Trans>Save schedule</Trans>}
           </Button>
         </DialogFooter>
