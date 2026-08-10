@@ -70,6 +70,10 @@ export const extractDerivedDocumentMeta = (
 
     // Reminder settings.
     reminderSettings: meta.reminderSettings ?? settings.reminderSettings ?? null,
+
+    // SMS override for this envelope. Null inherits the team default, so it is
+    // deliberately not filled in from settings here.
+    smsEnabled: meta.smsEnabled ?? null,
   } satisfies Omit<DocumentMeta, 'id'>;
 };
 

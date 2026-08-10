@@ -2,6 +2,7 @@ import { useCurrentOrganisation } from '@documenso/lib/client-only/providers/org
 import { useSession } from '@documenso/lib/client-only/providers/session';
 import { IS_AI_FEATURES_CONFIGURED } from '@documenso/lib/constants/app';
 import { DocumentSignatureType } from '@documenso/lib/constants/document';
+import { AppError } from '@documenso/lib/errors/app-error';
 import { isPersonalLayout } from '@documenso/lib/utils/organisations';
 import { trpc } from '@documenso/trpc/react';
 import { useToast } from '@documenso/ui/primitives/use-toast';
@@ -43,6 +44,28 @@ export default function OrganisationSettingsDocumentPage() {
   });
 
   const { mutateAsync: updateOrganisationSettings } = trpc.organisation.settings.update.useMutation();
+  const { mutateAsync: sendTestSms } = trpc.organisation.settings.sendTestSms.useMutation();
+
+  const onSendTestSms = async (phone: string) => {
+    try {
+      const result = await sendTestSms({ organisationId: organisation.id, phone });
+
+      toast({
+        title: t`Test message sent`,
+        description: t`Sent to ${result.to}. If it does not arrive, check the Twilio logs for message ${result.providerMessageId}.`,
+      });
+    } catch (err) {
+      // Show what actually went wrong. A generic message here would defeat the
+      // point of the button, which exists to make misconfiguration legible.
+      const error = AppError.parseError(err);
+
+      toast({
+        title: t`Test message failed`,
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
 
   const onDocumentPreferencesFormSubmit = async (data: TDocumentPreferencesFormSchema) => {
     try {
@@ -60,6 +83,7 @@ export default function OrganisationSettingsDocumentPage() {
         aiFeaturesEnabled,
         envelopeExpirationPeriod,
         reminderSettings,
+        smsSettings,
       } = data;
 
       if (
@@ -92,6 +116,7 @@ export default function OrganisationSettingsDocumentPage() {
           aiFeaturesEnabled,
           envelopeExpirationPeriod: envelopeExpirationPeriod ?? undefined,
           reminderSettings: reminderSettings ?? undefined,
+          smsSettings,
         },
       });
 
@@ -132,6 +157,7 @@ export default function OrganisationSettingsDocumentPage() {
           canInherit={false}
           isAiFeaturesConfigured={isAiFeaturesConfigured}
           settings={organisationWithSettings.organisationGlobalSettings}
+          onSendTestSms={onSendTestSms}
           onFormSubmit={onDocumentPreferencesFormSubmit}
         />
       </section>

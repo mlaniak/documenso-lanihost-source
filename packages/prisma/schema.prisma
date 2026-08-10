@@ -460,7 +460,6 @@ model Envelope {
   shareLinks                  DocumentShareLink[]
   auditLogs                   DocumentAuditLog[]
   scheduledReminderDeliveries ScheduledReminderDelivery[]
-  automationRuns              DocumentAutomationRun[]
 
   // Envelope settings
   authOptions Json? /// [DocumentAuthOptions] @zod.custom.use(ZDocumentAuthOptionsSchema)
@@ -585,6 +584,9 @@ model DocumentMeta {
 
   reminderSettings Json? /// [EnvelopeReminderSettings] @zod.custom.use(ZEnvelopeReminderSettingsSchema)
 
+  /// Per-envelope override for SMS notifications. Null inherits the team default.
+  smsEnabled Boolean?
+
   envelope Envelope?
 }
 
@@ -638,6 +640,36 @@ enum ScheduledReminderDeliveryStatus {
   CANCELLED
 }
 
+enum NotificationChannel {
+  EMAIL
+  SMS
+}
+
+enum ScheduledReminderDeliveryKind {
+  SIGNING_REQUEST
+  REMINDER
+  COMPLETION
+}
+
+enum SmsOptOutReason {
+  STOP
+  MANUAL
+  PROVIDER_PERMANENT
+}
+
+model SmsOptOut {
+  id        String          @id @default(cuid())
+  phone     String          @db.VarChar(20)
+  teamId    Int
+  reason    SmsOptOutReason
+  createdAt DateTime        @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([phone, teamId])
+  @@index([teamId])
+}
+
 enum ScheduledReminderProviderStatus {
   SUBMITTED
   DELAYED
@@ -652,6 +684,7 @@ model Recipient {
   id                          Int                         @id @default(autoincrement())
   envelopeId                  String
   email                       String                      @db.VarChar(255)
+  phone                       String?                     @db.VarChar(20)
   name                        String                      @default("") @db.VarChar(255)
   token                       String
   documentDeletedAt           DateTime?
@@ -699,6 +732,8 @@ model ScheduledReminderDelivery {
   id String @id @default(cuid())
 
   status           ScheduledReminderDeliveryStatus @default(PENDING)
+  channel          NotificationChannel             @default(EMAIL)
+  kind             ScheduledReminderDeliveryKind   @default(REMINDER)
   scheduledAt      DateTime
   nextAttemptAt    DateTime
   attemptCount     Int                             @default(0)
@@ -1047,7 +1082,7 @@ enum OrganisationMemberInviteStatus {
   DECLINED
 }
 
-/// @zod.import(["import { ZDocumentEmailSettingsSchema } from '@documenso/lib/types/document-email';", "import { ZDefaultRecipientsSchema } from '@documenso/lib/types/default-recipients';", "import { ZEnvelopeExpirationPeriod as ZEnvelopeExpirationPeriodSchema } from '@documenso/lib/constants/envelope-expiration';", "import { ZEnvelopeReminderSettings as ZEnvelopeReminderSettingsSchema } from '@documenso/lib/constants/envelope-reminder';", "import { ZCssVarsSchema } from '@documenso/lib/types/css-vars';"])
+/// @zod.import(["import { ZDocumentEmailSettingsSchema } from '@documenso/lib/types/document-email';", "import { ZDefaultRecipientsSchema } from '@documenso/lib/types/default-recipients';", "import { ZEnvelopeExpirationPeriod as ZEnvelopeExpirationPeriodSchema } from '@documenso/lib/constants/envelope-expiration';", "import { ZEnvelopeReminderSettings as ZEnvelopeReminderSettingsSchema } from '@documenso/lib/constants/envelope-reminder';", "import { ZCssVarsSchema } from '@documenso/lib/types/css-vars';", "import { ZSmsSettingsSchema } from '@documenso/lib/types/sms-settings';"])
 model OrganisationGlobalSettings {
   id           String        @id
   organisation Organisation?
@@ -1085,11 +1120,13 @@ model OrganisationGlobalSettings {
 
   reminderSettings Json? /// [EnvelopeReminderSettings] @zod.custom.use(ZEnvelopeReminderSettingsSchema)
 
+  smsSettings Json? /// [SmsSettings] @zod.custom.use(ZSmsSettingsSchema)
+
   // AI features settings.
   aiFeaturesEnabled Boolean @default(false)
 }
 
-/// @zod.import(["import { ZDocumentEmailSettingsSchema } from '@documenso/lib/types/document-email';", "import { ZDefaultRecipientsSchema } from '@documenso/lib/types/default-recipients';", "import { ZEnvelopeExpirationPeriod as ZEnvelopeExpirationPeriodSchema } from '@documenso/lib/constants/envelope-expiration';", "import { ZEnvelopeReminderSettings as ZEnvelopeReminderSettingsSchema } from '@documenso/lib/constants/envelope-reminder';", "import { ZCssVarsSchema } from '@documenso/lib/types/css-vars';", "import { ZTeamOperationsSettings } from '@documenso/lib/types/team-operations';"])
+/// @zod.import(["import { ZDocumentEmailSettingsSchema } from '@documenso/lib/types/document-email';", "import { ZDefaultRecipientsSchema } from '@documenso/lib/types/default-recipients';", "import { ZEnvelopeExpirationPeriod as ZEnvelopeExpirationPeriodSchema } from '@documenso/lib/constants/envelope-expiration';", "import { ZEnvelopeReminderSettings as ZEnvelopeReminderSettingsSchema } from '@documenso/lib/constants/envelope-reminder';", "import { ZCssVarsSchema } from '@documenso/lib/types/css-vars';", "import { ZSmsSettingsSchema } from '@documenso/lib/types/sms-settings';"])
 model TeamGlobalSettings {
   id   String @id
   team Team?
@@ -1128,45 +1165,10 @@ model TeamGlobalSettings {
 
   reminderSettings Json? /// [EnvelopeReminderSettings] @zod.custom.use(ZEnvelopeReminderSettingsSchema)
 
+  smsSettings Json? /// [SmsSettings] @zod.custom.use(ZSmsSettingsSchema)
+
   // AI features settings.
   aiFeaturesEnabled Boolean?
-
-  // Operational workflow settings. Kept as JSON so this self-hosted extension
-  // remains additive and easy to carry across upstream Documenso upgrades.
-  operationsSettings Json? /// [TeamOperationsSettings] @zod.custom.use(ZTeamOperationsSettings)
-}
-
-enum DocumentAutomationType {
-  COMPLETION_ARCHIVE
-  SIGNING_LINK_SMS
-}
-
-enum DocumentAutomationStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
-  SKIPPED
-}
-
-model DocumentAutomationRun {
-  id             String                   @id @default(cuid())
-  idempotencyKey String                   @unique
-  type           DocumentAutomationType
-  status         DocumentAutomationStatus @default(PENDING)
-  provider       String
-  providerId     String?
-  error          String?
-  metadata       Json?
-  createdAt      DateTime                 @default(now())
-  updatedAt      DateTime                 @updatedAt
-  completedAt    DateTime?
-
-  envelopeId String
-  envelope   Envelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
-
-  @@index([envelopeId, type])
-  @@index([status, createdAt])
 }
 
 model Team {
@@ -1187,6 +1189,7 @@ model Team {
   apiTokens  ApiToken[]
   webhooks   Webhook[]
   teamGroups TeamGroup[]
+  smsOptOuts SmsOptOut[]
 
   organisationId String
   organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)

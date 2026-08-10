@@ -1,5 +1,6 @@
 import { IS_AI_FEATURES_CONFIGURED } from '@documenso/lib/constants/app';
 import { DocumentSignatureType } from '@documenso/lib/constants/document';
+import { buildTwilioInboundWebhookUrl } from '@documenso/lib/server-only/sms/twilio-webhook-urls';
 import { trpc } from '@documenso/trpc/react';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 import { msg } from '@lingui/core/macro';
@@ -55,6 +56,7 @@ export default function TeamsSettingsPage() {
         aiFeaturesEnabled,
         envelopeExpirationPeriod,
         reminderSettings,
+        smsSettings,
       } = data;
 
       await updateTeamSettings({
@@ -71,6 +73,7 @@ export default function TeamsSettingsPage() {
           aiFeaturesEnabled,
           envelopeExpirationPeriod,
           reminderSettings,
+          smsSettings,
           ...(signatureTypes.length === 0
             ? {
                 typedSignatureEnabled: null,
@@ -121,6 +124,7 @@ export default function TeamsSettingsPage() {
           canInherit={true}
           isAiFeaturesConfigured={isAiFeaturesConfigured}
           settings={teamWithSettings.teamSettings}
+          inboundWebhookUrl={buildTwilioInboundWebhookUrl(team.id)}
           onFormSubmit={onDocumentPreferencesSubmit}
         />
       </section>

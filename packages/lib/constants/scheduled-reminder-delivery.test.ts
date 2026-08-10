@@ -7,6 +7,7 @@ import {
   getScheduledReminderMessageId,
   getScheduledReminderRetryAt,
   getScheduledReminderSequenceDates,
+  isScheduledDeliveryEligible,
   isScheduledReminderErrorRetryable,
   MAX_SCHEDULED_REMINDER_DELIVERY_ATTEMPTS,
   normaliseEmailMessageId,
@@ -96,5 +97,68 @@ describe('isScheduledReminderErrorRetryable', () => {
       false,
     );
     expect(isScheduledReminderErrorRetryable(new Error('Recipient address suppressed'))).toBe(false);
+  });
+});
+
+describe('isScheduledDeliveryEligible', () => {
+  const now = new Date('2026-08-09T12:00:00.000Z');
+
+  const pendingSigner = {
+    envelopeStatus: 'PENDING' as const,
+    envelopeDeletedAt: null,
+    signingStatus: 'NOT_SIGNED' as const,
+    role: 'SIGNER' as const,
+    expiresAt: null,
+    now,
+  };
+
+  it.each([
+    ['SIGNING_REQUEST' as const],
+    ['REMINDER' as const],
+  ])('allows %s for an unsigned recipient on a pending envelope', (kind) => {
+    expect(isScheduledDeliveryEligible({ ...pendingSigner, kind })).toBe(true);
+  });
+
+  it.each([['SIGNING_REQUEST' as const], ['REMINDER' as const]])('blocks %s once the recipient has signed', (kind) => {
+    expect(isScheduledDeliveryEligible({ ...pendingSigner, kind, signingStatus: 'SIGNED' })).toBe(false);
+  });
+
+  it('blocks a reminder to a CC recipient', () => {
+    expect(isScheduledDeliveryEligible({ ...pendingSigner, kind: 'REMINDER', role: 'CC' })).toBe(false);
+  });
+
+  it('blocks a reminder past the recipient expiry', () => {
+    expect(
+      isScheduledDeliveryEligible({
+        ...pendingSigner,
+        kind: 'REMINDER',
+        expiresAt: new Date('2026-08-09T11:00:00.000Z'),
+      }),
+    ).toBe(false);
+  });
+
+  it('allows COMPLETION on a completed envelope for a signed recipient', () => {
+    expect(
+      isScheduledDeliveryEligible({
+        ...pendingSigner,
+        kind: 'COMPLETION',
+        envelopeStatus: 'COMPLETED',
+        signingStatus: 'SIGNED',
+      }),
+    ).toBe(true);
+  });
+
+  it('blocks COMPLETION while the envelope is still pending', () => {
+    expect(isScheduledDeliveryEligible({ ...pendingSigner, kind: 'COMPLETION' })).toBe(false);
+  });
+
+  it('blocks everything on a deleted envelope', () => {
+    expect(
+      isScheduledDeliveryEligible({
+        ...pendingSigner,
+        kind: 'REMINDER',
+        envelopeDeletedAt: new Date('2026-08-08T00:00:00.000Z'),
+      }),
+    ).toBe(false);
   });
 });

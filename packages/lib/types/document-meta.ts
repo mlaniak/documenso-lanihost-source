@@ -128,6 +128,11 @@ export const ZDocumentMetaCreateSchema = z.object({
   emailSettings: ZDocumentEmailSettingsSchema.nullish(),
   envelopeExpirationPeriod: ZEnvelopeExpirationPeriod.nullish(),
   reminderSettings: ZEnvelopeReminderSettings.nullish(),
+  /**
+   * Per-envelope SMS override. Null inherits the team default, so the send
+   * dialog can turn texting off for one document without changing settings.
+   */
+  smsEnabled: z.boolean().nullish(),
 });
 
 export type TDocumentMetaCreate = z.infer<typeof ZDocumentMetaCreateSchema>;

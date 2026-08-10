@@ -1,4 +1,5 @@
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
+import { redactSmsSettings } from '@documenso/lib/types/sms-settings';
 import { prisma } from '@documenso/prisma';
 
 import { adminProcedure } from '../trpc';
@@ -70,5 +71,6 @@ export const getAdminOrganisation = async ({ organisationId }: GetOrganisationOp
 
   return {
     ...organisation,
+    organisationGlobalSettings: redactSmsSettings(organisation.organisationGlobalSettings),
   };
 };

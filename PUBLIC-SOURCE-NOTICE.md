@@ -3,7 +3,8 @@
 This repository provides the corresponding AGPL-3.0 source code for a modified
 self-hosted Documenso deployment. The customization adds one-off scheduled
 signing reminders, retry-safe per-recipient delivery records, audit history,
-status feedback, and operational monitoring examples.
+status feedback, operational monitoring examples, and SMS notifications with
+per-team sender numbers and opt-out handling.
 
 Production documents, recipient information, database contents, backups,
 credentials, private keys, environment files, and server configuration are not

@@ -1,3 +1,4 @@
+import type { DocumentStatus, RecipientRole, ScheduledReminderDeliveryKind, SigningStatus } from '@prisma/client';
 import { DateTime } from 'luxon';
 
 export const MAX_SCHEDULED_REMINDER_DELIVERY_ATTEMPTS = 5;
@@ -144,5 +145,38 @@ export const getScheduledReminderSequenceDates = (options: {
       .plus({ days: index * (intervalDays ?? 0) })
       .toUTC()
       .toJSDate(),
+  );
+};
+
+/**
+ * A completion message is sent precisely when a signing request must not be:
+ * the envelope is finished and the recipient has signed. Eligibility therefore
+ * cannot be one rule for every kind.
+ */
+export const isScheduledDeliveryEligible = (options: {
+  kind: ScheduledReminderDeliveryKind;
+  envelopeStatus: DocumentStatus;
+  envelopeDeletedAt: Date | null;
+  signingStatus: SigningStatus;
+  role: RecipientRole;
+  expiresAt: Date | null;
+  now: Date;
+}): boolean => {
+  if (options.envelopeDeletedAt !== null) {
+    return false;
+  }
+
+  if (options.role === 'CC') {
+    return false;
+  }
+
+  if (options.kind === 'COMPLETION') {
+    return options.envelopeStatus === 'COMPLETED' && options.signingStatus === 'SIGNED';
+  }
+
+  return (
+    options.envelopeStatus === 'PENDING' &&
+    options.signingStatus === 'NOT_SIGNED' &&
+    (!options.expiresAt || options.expiresAt > options.now)
   );
 };

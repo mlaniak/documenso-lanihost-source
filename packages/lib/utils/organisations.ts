@@ -137,6 +137,8 @@ export const generateDefaultOrganisationSettings = (): Omit<OrganisationGlobalSe
     envelopeExpirationPeriod: DEFAULT_ENVELOPE_EXPIRATION_PERIOD,
 
     reminderSettings: DEFAULT_ENVELOPE_REMINDER_SETTINGS,
+    // Null means SMS is unconfigured, which resolves to disabled.
+    smsSettings: null,
 
     aiFeaturesEnabled: false,
   };

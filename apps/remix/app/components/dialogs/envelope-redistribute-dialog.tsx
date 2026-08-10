@@ -31,6 +31,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { match } from 'ts-pattern';
 import * as z from 'zod';
+import { useOptionalCurrentTeam } from '~/providers/team';
 import { getDistributeErrorMessage } from '~/utils/toast-error-messages';
 import { StackAvatar } from '../general/stack-avatar';
 
@@ -52,6 +53,7 @@ export const ZEnvelopeRedistributeFormSchema = z
     scheduleType: z.enum(['one', 'sequence']),
     intervalDays: z.number().int().min(1).max(30),
     total: z.number().int().min(1).max(5),
+    smsEnabled: z.boolean().nullable(),
   })
   .superRefine((value, context) => {
     if (value.delivery !== 'scheduled') {
@@ -91,12 +93,16 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
   const [scheduledReminderDates, setScheduledReminderDates] = useState<Record<number, Date | null>>({});
 
   const { mutateAsync: redistributeEnvelope } = trpcReact.envelope.redistribute.useMutation();
+
+  const currentTeam = useOptionalCurrentTeam();
+  const smsDefaultOn = currentTeam?.preferences?.smsDefaultOn ?? false;
   const { mutateAsync: updateReminderSchedule, isPending: isUpdatingReminderSchedule } =
     trpcReact.envelope.reminderSchedule.update.useMutation();
 
   const form = useForm<TEnvelopeRedistributeFormSchema>({
     defaultValues: {
       recipients: [],
+      smsEnabled: null,
       delivery: 'now',
       scheduledAt: '',
       scheduleType: 'one',
@@ -133,6 +139,7 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
     scheduleType,
     intervalDays,
     total,
+    smsEnabled,
   }: TEnvelopeRedistributeFormSchema) => {
     try {
       if (delivery === 'scheduled') {
@@ -170,7 +177,7 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
         return;
       }
 
-      await redistributeEnvelope({ envelopeId: envelope.id, recipients });
+      await redistributeEnvelope({ envelopeId: envelope.id, recipients, smsEnabled: smsEnabled ?? undefined });
 
       const successMessage = match(envelopeType)
         .with(EnvelopeType.DOCUMENT, () => ({
@@ -345,6 +352,33 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
                     </div>
 
                     <FormMessage className="px-3" aria-live="polite" />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="smsEnabled"
+                render={({ field }) => (
+                  <FormItem className="mt-4 flex flex-row items-start gap-2 space-y-0 rounded-md border p-3">
+                    <FormControl>
+                      <Checkbox
+                        // Null keeps whatever the envelope already had, so an
+                        // untouched resend does not silently change behaviour.
+                        checked={field.value ?? smsDefaultOn}
+                        onCheckedChange={(checked) => field.onChange(checked === true)}
+                      />
+                    </FormControl>
+
+                    <div className="space-y-1">
+                      <FormLabel className="font-normal">
+                        <Trans>Also send a text message</Trans>
+                      </FormLabel>
+
+                      <p className="text-muted-foreground text-xs">
+                        <Trans>Recipients without a mobile number receive email only.</Trans>
+                      </p>
+                    </div>
                   </FormItem>
                 )}
               />

@@ -116,6 +116,9 @@ export default function AuthoringLayout() {
     currentTeamRole: TeamMemberRole.MEMBER,
     preferences: {
       aiFeaturesEnabled: preferences.aiFeaturesEnabled,
+      // The embed authoring flow collects no mobile numbers, so nothing here
+      // can be texted regardless of the team default.
+      smsDefaultOn: false,
     },
   };
 

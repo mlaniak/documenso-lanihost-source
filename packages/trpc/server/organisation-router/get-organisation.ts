@@ -1,4 +1,5 @@
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
+import { redactSmsSettings } from '@documenso/lib/types/sms-settings';
 import { prisma } from '@documenso/prisma';
 
 import { authenticatedProcedure } from '../trpc';
@@ -79,6 +80,8 @@ export const getOrganisation = async ({ userId, organisationReference }: GetOrga
 
   return {
     ...organisation,
+    // The SMS auth token never crosses to a client, encrypted or not.
+    organisationGlobalSettings: redactSmsSettings(organisation.organisationGlobalSettings),
     teams: organisation.teams,
   };
 };

@@ -303,6 +303,7 @@ const EnvelopeCreatePage = ({ embedAuthoringOptions }: EnvelopeCreatePageProps) 
       id: -(index + 1),
       envelopeId: '',
       email: recipient.email,
+      phone: null,
       name: recipient.name,
       role: recipient.role,
       token: '',

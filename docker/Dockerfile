@@ -71,6 +71,8 @@ COPY --from=builder /app/out/package-lock.json ./package-lock.json
 
 COPY --from=builder /app/lingui.config.ts ./lingui.config.ts
 COPY --from=builder /app/patches ./patches
+# postinstall runs during npm ci, so its helper has to exist beforehand.
+COPY --from=builder /app/scripts/postinstall-prisma-generate.mjs ./scripts/postinstall-prisma-generate.mjs
 
 RUN npm ci
 
@@ -111,6 +113,10 @@ COPY --from=builder --chown=nodejs:nodejs /app/out/json/ .
 COPY --from=builder --chown=nodejs:nodejs /app/out/full/packages/tailwind-config ./packages/tailwind-config
 # Copy the patches across
 COPY --from=builder --chown=nodejs:nodejs /app/patches ./patches
+# postinstall runs during npm ci, so its helper has to exist beforehand. The
+# Prisma schema is deliberately absent in this stage; the helper detects that
+# and skips generation rather than failing the build.
+COPY --from=builder --chown=nodejs:nodejs /app/scripts/postinstall-prisma-generate.mjs ./scripts/postinstall-prisma-generate.mjs
 
 RUN npm ci --only=production
 

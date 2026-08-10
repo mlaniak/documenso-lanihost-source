@@ -19,6 +19,8 @@ export const ZGetOrganisationSessionResponseSchema = ZOrganisationSchema.extend(
       teamEmail: TeamEmailSchema.pick({ email: true }).nullable(),
       preferences: z.object({
         aiFeaturesEnabled: z.boolean(),
+        /** Whether the send dialog should tick "also send a text" by default. */
+        smsDefaultOn: z.boolean(),
       }),
     }),
   ),

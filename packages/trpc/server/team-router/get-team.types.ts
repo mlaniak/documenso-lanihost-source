@@ -29,7 +29,6 @@ export const ZGetTeamResponseSchema = TeamSchema.pick({
   currentTeamRole: z.nativeEnum(TeamMemberRole),
   teamSettings: TeamGlobalSettingsSchema.omit({
     id: true,
-    operationsSettings: true,
   }),
   derivedSettings: OrganisationGlobalSettingsSchema.omit({
     id: true,

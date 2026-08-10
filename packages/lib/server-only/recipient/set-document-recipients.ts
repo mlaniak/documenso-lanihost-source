@@ -9,6 +9,7 @@ import { prisma } from '@documenso/prisma';
 import type { Recipient } from '@prisma/client';
 import { EnvelopeType, RecipientRole, SendStatus, SigningStatus } from '@prisma/client';
 import { isDeepEqual } from 'remeda';
+import { normalisePhoneNumber } from '../../constants/sms-delivery';
 
 import { AppError, AppErrorCode } from '../../errors/app-error';
 import { jobs } from '../../jobs/client';
@@ -101,6 +102,9 @@ export const setDocumentRecipients = async ({
   const normalizedRecipients = recipients.map((recipient) => ({
     ...recipient,
     email: recipient.email.toLowerCase(),
+    // An unusable number is stored as null rather than rejected: a bad phone
+    // must never block a send, it just means no text for that recipient.
+    phone: recipient.phone ? normalisePhoneNumber(recipient.phone) : null,
   }));
 
   const existingRecipients = envelope.recipients;
@@ -160,6 +164,7 @@ export const setDocumentRecipients = async ({
           update: {
             name: recipient.name,
             email: recipient.email,
+            phone: recipient.phone,
             role: recipient.role,
             signingOrder: recipient.signingOrder,
             envelopeId: envelope.id,
@@ -170,6 +175,7 @@ export const setDocumentRecipients = async ({
           create: {
             name: recipient.name,
             email: recipient.email,
+            phone: recipient.phone,
             role: recipient.role,
             signingOrder: recipient.signingOrder,
             token: nanoid(),
@@ -321,6 +327,8 @@ type RecipientData = {
   id?: number | null;
   clientId?: string | null;
   email: string;
+  /** Optional mobile number for SMS notifications, normalised to E.164. */
+  phone?: string | null;
   name: string;
   role: RecipientRole;
   signingOrder?: number | null;
@@ -341,6 +349,9 @@ const hasRecipientBeenChanged = (recipient: Recipient, newRecipientData: Recipie
   return (
     recipient.email !== newRecipientData.email ||
     recipient.name !== newRecipientData.name ||
+    // Without this, editing only the phone number reads as "unchanged" and the
+    // edit is silently discarded.
+    recipient.phone !== (newRecipientData.phone ?? null) ||
     recipient.role !== newRecipientData.role ||
     recipient.signingOrder !== newRecipientData.signingOrder ||
     !isDeepEqual(authOptions.accessAuth, newRecipientAccessAuth) ||

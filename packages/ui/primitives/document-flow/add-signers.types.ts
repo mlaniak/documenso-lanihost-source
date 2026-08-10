@@ -10,6 +10,7 @@ export const ZAddSignersFormSchema = z.object({
       formId: z.string().min(1),
       nativeId: z.number().optional(),
       email: zEmail(msg`Invalid email`.id).min(1),
+      phone: z.string().optional(),
       name: z.string(),
       role: z.nativeEnum(RecipientRole),
       signingOrder: z.number().optional(),

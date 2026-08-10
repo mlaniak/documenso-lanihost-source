@@ -24,6 +24,8 @@ export type CreateDocumentMetaOptions = {
   redirectUrl?: string;
   emailId?: string | null;
   emailReplyTo?: string | null;
+  /** Per-envelope SMS override; null inherits the team default. */
+  smsEnabled?: boolean | null;
   emailSettings?: TDocumentEmailSettings;
   signingOrder?: DocumentSigningOrder;
   allowDictateNextSigner?: boolean;
@@ -48,6 +50,7 @@ export const updateDocumentMeta = async ({
   allowDictateNextSigner,
   emailId,
   emailReplyTo,
+  smsEnabled,
   emailSettings,
   distributionMethod,
   typedSignatureEnabled,
@@ -127,6 +130,7 @@ export const updateDocumentMeta = async ({
         allowDictateNextSigner,
         emailId,
         emailReplyTo,
+        smsEnabled,
         emailSettings,
         distributionMethod,
         typedSignatureEnabled,

@@ -7,7 +7,6 @@ import { getScheduledReminderSequenceDates } from '@documenso/lib/constants/sche
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '@documenso/lib/types/document-audit-logs';
 import { extractDerivedDocumentEmailSettings } from '@documenso/lib/types/document-email';
-import { normalizeReminderToBusinessWindow, parseTeamOperationsSettings } from '@documenso/lib/types/team-operations';
 import { createDocumentAuditLogData } from '@documenso/lib/utils/document-audit-logs';
 import { prisma } from '@documenso/prisma';
 import {
@@ -21,6 +20,7 @@ import {
 import { nanoid } from 'nanoid';
 
 import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';
+import { enqueueSmsDelivery } from '../sms/enqueue-sms-delivery';
 import { assertUserNotDisabled } from '../user/assert-user-not-disabled';
 
 export type UpdateDocumentReminderScheduleOptions = {
@@ -82,13 +82,6 @@ export const updateDocumentReminderSchedule = async ({
     where: envelopeWhereInput,
     include: {
       documentMeta: true,
-      team: {
-        select: {
-          teamGlobalSettings: {
-            select: { operationsSettings: true },
-          },
-        },
-      },
       recipients: {
         where: { id: { in: recipients } },
       },
@@ -100,25 +93,6 @@ export const updateDocumentReminderSchedule = async ({
       message: 'Document could not be found',
     });
   }
-
-  const operationsSettings = parseTeamOperationsSettings(envelope.team.teamGlobalSettings.operationsSettings);
-
-  sequenceDates = sequenceDates.reduce<Date[]>((dates, date) => {
-    let normalized = normalizeReminderToBusinessWindow({ date, timezone, settings: operationsSettings });
-    const previous = dates.at(-1);
-
-    if (previous && normalized.getTime() <= previous.getTime()) {
-      normalized = normalizeReminderToBusinessWindow({
-        date: new Date(previous.getTime() + 24 * 60 * 60 * 1000),
-        timezone,
-        settings: operationsSettings,
-      });
-    }
-
-    dates.push(normalized);
-
-    return dates;
-  }, []);
 
   if (envelope.status !== DocumentStatus.PENDING || !envelope.documentMeta) {
     throw new AppError(AppErrorCode.INVALID_REQUEST, {
@@ -272,6 +246,29 @@ export const updateDocumentReminderSchedule = async ({
       }
     }
   });
+
+  // Enqueued after the transaction commits, not inside it. enqueueSmsDelivery
+  // uses the global client, so a rollback would otherwise leave a text queued
+  // for a reminder that no longer exists.
+  if (scheduledAt) {
+    await Promise.all(
+      sequenceDates.flatMap((deliveryAt) =>
+        recipients.map((recipientId) =>
+          enqueueSmsDelivery({
+            envelopeId: envelope.id,
+            recipientId,
+            teamId,
+            documentSmsEnabled: envelope.documentMeta?.smsEnabled ?? null,
+            kind: 'REMINDER',
+            createdById: userId,
+            scheduledAt: deliveryAt,
+          }).catch((error) => {
+            console.error('Could not queue a reminder SMS', error);
+          }),
+        ),
+      ),
+    );
+  }
 
   return await prisma.recipient.findMany({
     where: { id: { in: recipients } },

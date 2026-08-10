@@ -18,7 +18,6 @@ import {
   WebhookTriggerEvents,
 } from '@prisma/client';
 import { createElement } from 'react';
-
 import { getI18nInstance } from '../../client-only/providers/i18n-server';
 import { NEXT_PUBLIC_WEBAPP_URL } from '../../constants/app';
 import { extractDerivedDocumentEmailSettings } from '../../types/document-email';
@@ -32,6 +31,7 @@ import { getEmailContext } from '../email/get-email-context';
 import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';
 import { assertOrganisationRatesAndLimits } from '../rate-limit/assert-organisation-rates-and-limits';
 import { updateRecipientNextReminder } from '../recipient/update-recipient-next-reminder';
+import { enqueueSmsDelivery } from '../sms/enqueue-sms-delivery';
 import { assertUserNotDisabled } from '../user/assert-user-not-disabled';
 import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
 
@@ -250,6 +250,22 @@ export const resendDocument = async ({
     recipientsToRemind.map(async (recipient) => {
       if (recipient.role === RecipientRole.CC || !isRecipientEmailValidForSending(recipient)) {
         return;
+      }
+
+      // emailDeliveryTracking is only supplied by the reminder worker, which
+      // already has its own SMS row. Without this gate every email reminder
+      // would queue a duplicate text.
+      if (!emailDeliveryTracking) {
+        await enqueueSmsDelivery({
+          envelopeId: envelope.id,
+          recipientId: recipient.id,
+          teamId,
+          documentSmsEnabled: envelope.documentMeta?.smsEnabled ?? null,
+          kind: 'SIGNING_REQUEST',
+          createdById: userId,
+        }).catch((error) => {
+          console.error('Could not queue a resend SMS', error);
+        });
       }
 
       const i18n = await getI18nInstance(emailLanguage);
