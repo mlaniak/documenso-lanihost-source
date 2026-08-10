@@ -1,5 +1,6 @@
 import { ORGANISATION_MEMBER_ROLE_PERMISSIONS_MAP } from '@documenso/lib/constants/organisations';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
+import { mergeSmsSettingsForStorage } from '@documenso/lib/server-only/sms/sms-credentials';
 import { normalizeBrandingColors } from '@documenso/lib/utils/normalize-branding-colors';
 import { buildOrganisationWhereQuery } from '@documenso/lib/utils/organisations';
 import { type SanitizeBrandingCssWarning, sanitizeBrandingCss } from '@documenso/lib/utils/sanitize-branding-css';
@@ -41,6 +42,7 @@ export const updateOrganisationSettingsRoute = authenticatedProcedure
       delegateDocumentOwnership,
       envelopeExpirationPeriod,
       reminderSettings,
+      smsSettings,
 
       // Branding related settings.
       brandingEnabled,
@@ -104,6 +106,18 @@ export const updateOrganisationSettingsRoute = authenticatedProcedure
       uploadSignatureEnabled ?? organisation.organisationGlobalSettings.uploadSignatureEnabled;
     const derivedDrawSignatureEnabled =
       drawSignatureEnabled ?? organisation.organisationGlobalSettings.drawSignatureEnabled;
+
+    // undefined leaves the column untouched; null clears it so the team or
+    // organisation falls back to inheriting.
+    const resolvedSmsSettings =
+      smsSettings === undefined
+        ? undefined
+        : smsSettings === null
+          ? Prisma.DbNull
+          : mergeSmsSettingsForStorage({
+              submitted: smsSettings,
+              stored: organisation.organisationGlobalSettings.smsSettings,
+            });
 
     const derivedDelegateDocumentOwnership =
       delegateDocumentOwnership ?? organisation.organisationGlobalSettings.delegateDocumentOwnership;
@@ -170,6 +184,7 @@ export const updateOrganisationSettingsRoute = authenticatedProcedure
             delegateDocumentOwnership: derivedDelegateDocumentOwnership,
             envelopeExpirationPeriod: envelopeExpirationPeriod === null ? Prisma.DbNull : envelopeExpirationPeriod,
             reminderSettings: reminderSettings === null ? Prisma.DbNull : reminderSettings,
+            smsSettings: resolvedSmsSettings,
 
             // Branding related settings.
             brandingEnabled,

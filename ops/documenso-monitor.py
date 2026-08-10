@@ -204,19 +204,48 @@ def check() -> list[str]:
     if failed_deliveries is not None and int(failed_deliveries or "0") > 0:
         findings.append(f"{failed_deliveries} scheduled reminder deliveries failed recently")
 
+    # A completion delivery sits on a COMPLETED envelope, so filtering on a
+    # pending envelope alone would never surface an unconfirmed completion.
     unconfirmed_deliveries = query_database(
         'SELECT count(*) FROM "ScheduledReminderDelivery" delivery '
         'JOIN "Envelope" envelope ON envelope.id = delivery."envelopeId" '
         "WHERE delivery.status = 'SENT' "
-        "AND envelope.status = 'PENDING' "
+        "AND (envelope.status = 'PENDING' OR delivery.kind = 'COMPLETION') "
         "AND (delivery.\"providerStatus\" IS NULL OR delivery.\"providerStatus\" = 'SUBMITTED') "
         "AND delivery.\"sentAt\" < NOW() - INTERVAL '2 hours' "
         "AND delivery.\"sentAt\" > NOW() - INTERVAL '7 days';"
     )
     if unconfirmed_deliveries is not None and int(unconfirmed_deliveries or "0") > 0:
         findings.append(
-            f"{unconfirmed_deliveries} pending-document reminder deliveries lack provider confirmation"
+            f"{unconfirmed_deliveries} deliveries lack provider confirmation"
         )
+
+    # SMS-specific visibility. The checks above are channel-agnostic, so an SMS
+    # outage would be diluted into the email numbers and easy to miss.
+    failed_sms = query_database(
+        'SELECT count(*) FROM "ScheduledReminderDelivery" '
+        "WHERE channel = 'SMS' AND status = 'FAILED' "
+        "AND \"failedAt\" > NOW() - INTERVAL '6 minutes';"
+    )
+    if failed_sms is not None and int(failed_sms or "0") > 0:
+        findings.append(f"{failed_sms} SMS deliveries failed recently")
+
+    undelivered_sms = query_database(
+        'SELECT count(*) FROM "ScheduledReminderDelivery" '
+        "WHERE channel = 'SMS' AND \"providerStatus\" IN ('BOUNCED', 'FAILED') "
+        "AND \"providerFailedAt\" > NOW() - INTERVAL '1 hour';"
+    )
+    if undelivered_sms is not None and int(undelivered_sms or "0") > 0:
+        findings.append(f"{undelivered_sms} SMS messages were rejected by the carrier in the last hour")
+
+    # A burst of opt-outs means the messaging is unwelcome, which threatens the
+    # A2P registration long before it shows up as a delivery failure.
+    recent_opt_outs = query_database(
+        'SELECT count(*) FROM "SmsOptOut" '
+        "WHERE \"createdAt\" > NOW() - INTERVAL '24 hours';"
+    )
+    if recent_opt_outs is not None and int(recent_opt_outs or "0") >= 3:
+        findings.append(f"{recent_opt_outs} SMS opt-outs in the last 24 hours")
 
     failed_jobs = query_database(
         'SELECT count(*) FROM "BackgroundJob" '

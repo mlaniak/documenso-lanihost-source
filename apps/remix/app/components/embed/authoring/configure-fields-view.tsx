@@ -108,6 +108,9 @@ export const ConfigureFieldsView = ({
       id: signer.nativeId || index,
       name: signer.name || '',
       email: signer.email || '',
+      // The embed authoring flow does not collect a mobile number, so these
+      // recipients are never texted.
+      phone: null,
       role: signer.role,
       signingOrder: signer.signingOrder || null,
       documentId: null,

@@ -28,6 +28,7 @@ export const ZDistributeEnvelopeRequestSchema = z.object({
     emailId: true,
     emailReplyTo: true,
     emailSettings: true,
+    smsEnabled: true,
   }).optional(),
 });
 

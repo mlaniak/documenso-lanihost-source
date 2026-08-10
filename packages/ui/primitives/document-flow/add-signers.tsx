@@ -107,6 +107,7 @@ export const AddSignersFormPartial = ({
       formId: initialId,
       name: '',
       email: '',
+      phone: '',
       role: RecipientRole.SIGNER,
       signingOrder: 1,
       actionAuth: [],
@@ -124,6 +125,7 @@ export const AddSignersFormPartial = ({
                 formId: String(recipient.id),
                 name: recipient.name,
                 email: recipient.email,
+                phone: recipient.phone ?? '',
                 role: recipient.role,
                 signingOrder: recipient.signingOrder ?? index + 1,
                 actionAuth: ZRecipientAuthOptionsSchema.parse(recipient.authOptions)?.actionAuth ?? undefined,
@@ -263,6 +265,7 @@ export const AddSignersFormPartial = ({
       formId: nanoid(12),
       name: '',
       email: '',
+      phone: '',
       role: RecipientRole.SIGNER,
       actionAuth: [],
       signingOrder: signers.length > 0 ? (signers[signers.length - 1]?.signingOrder ?? 0) + 1 : 1,
@@ -794,6 +797,36 @@ export const AddSignersFormPartial = ({
                                         loading={isLoading}
                                         maxLength={255}
                                         onBlur={handleAutoSave}
+                                      />
+                                    </FormControl>
+
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              {/* Full-width second line so the existing column
+                                  spans on the row above are untouched. */}
+                              <FormField
+                                control={form.control}
+                                name={`signers.${index}.phone`}
+                                render={({ field }) => (
+                                  <FormItem className="col-span-full">
+                                    <FormControl>
+                                      <Input
+                                        {...field}
+                                        type="tel"
+                                        autoComplete="tel"
+                                        value={field.value ?? ''}
+                                        placeholder={_(msg`Mobile for text updates (optional)`)}
+                                        disabled={
+                                          snapshot.isDragging ||
+                                          isSubmitting ||
+                                          !canRecipientBeModified(signer.nativeId)
+                                        }
+                                        maxLength={20}
+                                        onBlur={handleAutoSave}
+                                        data-testid="signer-phone-input"
                                       />
                                     </FormControl>
 

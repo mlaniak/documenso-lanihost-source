@@ -15,6 +15,10 @@ concurrency:
 jobs:
   pull_translations:
     name: Pull translations
+    # Crowdin credentials belong to the upstream Documenso project, so this
+    # job can only ever fail on a fork. Skipping keeps the workflow file
+    # identical to upstream for rebases, without a red run every two hours.
+    if: github.repository == 'documenso/documenso'
     runs-on: ubuntu-latest
     environment: Translations
     permissions:

@@ -7,7 +7,7 @@
   ],
   "version": "2.15.0",
   "scripts": {
-    "postinstall": "patch-package",
+    "postinstall": "patch-package && node ./scripts/postinstall-prisma-generate.mjs",
     "build": "turbo run build",
     "dev": "npm run translate:compile && turbo run dev --filter=@documenso/remix",
     "dev:remix": "npm run translate:compile && turbo run dev --filter=@documenso/remix",

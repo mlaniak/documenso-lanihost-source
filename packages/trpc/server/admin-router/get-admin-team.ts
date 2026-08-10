@@ -1,4 +1,5 @@
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
+import { redactSmsSettings } from '@documenso/lib/types/sms-settings';
 import { getHighestOrganisationRoleInGroup } from '@documenso/lib/utils/organisations';
 import { getHighestTeamRoleInGroup } from '@documenso/lib/utils/teams';
 import { prisma } from '@documenso/prisma';
@@ -124,6 +125,7 @@ export const getAdminTeamRoute = adminProcedure
 
     return {
       ...team,
+      teamGlobalSettings: redactSmsSettings(team.teamGlobalSettings),
       memberCount: mappedTeamMembers.length,
       teamMembers: mappedTeamMembers,
       pendingInvites,

@@ -12,12 +12,18 @@ import { TIME_ZONES } from '@documenso/lib/constants/time-zones';
 import type { TDefaultRecipients } from '@documenso/lib/types/default-recipients';
 import { ZDefaultRecipientsSchema } from '@documenso/lib/types/default-recipients';
 import { type TDocumentMetaDateFormat, ZDocumentMetaTimezoneSchema } from '@documenso/lib/types/document-meta';
+import {
+  type TSmsSettingsForm,
+  toSmsSettingsFormValue,
+  ZSmsSettingsFormValueSchema,
+} from '@documenso/lib/types/sms-settings-form';
 import { isPersonalLayout } from '@documenso/lib/utils/organisations';
 import { recipientAbbreviation } from '@documenso/lib/utils/recipient-formatter';
 import { extractTeamSignatureSettings } from '@documenso/lib/utils/teams';
 import { DocumentSignatureSettingsTooltip } from '@documenso/ui/components/document/document-signature-settings-tooltip';
 import { ExpirationPeriodPicker } from '@documenso/ui/components/document/expiration-period-picker';
 import { ReminderSettingsPicker } from '@documenso/ui/components/document/reminder-settings-picker';
+import { SmsSettingsPicker } from '@documenso/ui/components/document/sms-settings-picker';
 import { RecipientRoleSelect } from '@documenso/ui/components/recipient/recipient-role-select';
 import { Alert } from '@documenso/ui/primitives/alert';
 import { AvatarWithText } from '@documenso/ui/primitives/avatar';
@@ -65,6 +71,7 @@ export type TDocumentPreferencesFormSchema = {
   aiFeaturesEnabled: boolean | null;
   envelopeExpirationPeriod: TEnvelopeExpirationPeriod | null;
   reminderSettings: TEnvelopeReminderSettings | null;
+  smsSettings: TSmsSettingsForm | null;
 };
 
 type SettingsSubset = Pick<
@@ -84,12 +91,17 @@ type SettingsSubset = Pick<
   | 'aiFeaturesEnabled'
   | 'envelopeExpirationPeriod'
   | 'reminderSettings'
+  | 'smsSettings'
 >;
 
 export type DocumentPreferencesFormProps = {
   settings: SettingsSubset;
   canInherit: boolean;
   isAiFeaturesConfigured?: boolean;
+  /** Team-scoped Twilio inbound webhook URL, when a team id is in scope. */
+  inboundWebhookUrl?: string;
+  /** Sends a real test message using the saved SMS settings. */
+  onSendTestSms?: (phone: string) => Promise<void>;
   onFormSubmit: (data: TDocumentPreferencesFormSchema) => Promise<void>;
 };
 
@@ -98,6 +110,8 @@ export const DocumentPreferencesForm = ({
   onFormSubmit,
   canInherit,
   isAiFeaturesConfigured = false,
+  inboundWebhookUrl,
+  onSendTestSms,
 }: DocumentPreferencesFormProps) => {
   const { _ } = useLingui();
   const { user, organisations } = useSession();
@@ -125,6 +139,7 @@ export const DocumentPreferencesForm = ({
     aiFeaturesEnabled: z.boolean().nullable(),
     envelopeExpirationPeriod: ZEnvelopeExpirationPeriod.nullable(),
     reminderSettings: ZEnvelopeReminderSettings.nullable(),
+    smsSettings: ZSmsSettingsFormValueSchema,
   });
 
   const form = useForm<TDocumentPreferencesFormSchema>({
@@ -143,6 +158,7 @@ export const DocumentPreferencesForm = ({
       aiFeaturesEnabled: settings.aiFeaturesEnabled,
       envelopeExpirationPeriod: settings.envelopeExpirationPeriod ?? null,
       reminderSettings: settings.reminderSettings ?? null,
+      smsSettings: toSmsSettingsFormValue(settings.smsSettings),
     },
     resolver: zodResolver(ZDocumentPreferencesFormSchema),
   });
@@ -708,6 +724,37 @@ export const DocumentPreferencesForm = ({
                   <Trans>
                     Controls when and how often reminder emails are sent to recipients who have not yet completed
                     signing.
+                  </Trans>
+                </FormDescription>
+
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="smsSettings"
+            render={({ field }) => (
+              <FormItem className="flex-1">
+                <FormLabel>
+                  <Trans>Text Message Notifications</Trans>
+                </FormLabel>
+
+                <FormControl>
+                  <SmsSettingsPicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    inheritLabel={canInherit ? t`Inherit from organisation` : undefined}
+                    inboundWebhookUrl={inboundWebhookUrl}
+                    onSendTest={onSendTestSms}
+                  />
+                </FormControl>
+
+                <FormDescription>
+                  <Trans>
+                    Sends the signing link by text alongside the email, so a message caught by a spam filter is not the
+                    only attempt. Recipients without a mobile number are skipped.
                   </Trans>
                 </FormDescription>
 

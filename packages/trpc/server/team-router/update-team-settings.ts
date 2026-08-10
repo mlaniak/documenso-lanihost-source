@@ -1,6 +1,7 @@
 import { ORGANISATION_MEMBER_ROLE_PERMISSIONS_MAP } from '@documenso/lib/constants/organisations';
 import { TEAM_MEMBER_ROLE_PERMISSIONS_MAP } from '@documenso/lib/constants/teams';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
+import { mergeSmsSettingsForStorage } from '@documenso/lib/server-only/sms/sms-credentials';
 import { normalizeBrandingColors } from '@documenso/lib/utils/normalize-branding-colors';
 import { buildOrganisationWhereQuery } from '@documenso/lib/utils/organisations';
 import { type SanitizeBrandingCssWarning, sanitizeBrandingCss } from '@documenso/lib/utils/sanitize-branding-css';
@@ -39,6 +40,7 @@ export const updateTeamSettingsRoute = authenticatedProcedure
       delegateDocumentOwnership,
       envelopeExpirationPeriod,
       reminderSettings,
+      smsSettings,
 
       // Branding related settings.
       brandingEnabled,
@@ -78,6 +80,7 @@ export const updateTeamSettingsRoute = authenticatedProcedure
         userId: user.id,
         roles: TEAM_MEMBER_ROLE_PERMISSIONS_MAP['MANAGE_TEAM'],
       }),
+      include: { teamGlobalSettings: true },
     });
 
     if (!team) {
@@ -85,6 +88,18 @@ export const updateTeamSettingsRoute = authenticatedProcedure
         message: 'You do not have permission to update this team.',
       });
     }
+
+    // undefined leaves the column untouched; null clears it so the team falls
+    // back to inheriting from the organisation.
+    const resolvedSmsSettings =
+      smsSettings === undefined
+        ? undefined
+        : smsSettings === null
+          ? Prisma.DbNull
+          : mergeSmsSettingsForStorage({
+              submitted: smsSettings,
+              stored: team.teamGlobalSettings.smsSettings,
+            });
 
     // Validate that the email ID belongs to the organisation.
     if (emailId) {
@@ -172,6 +187,7 @@ export const updateTeamSettingsRoute = authenticatedProcedure
             delegateDocumentOwnership,
             envelopeExpirationPeriod: envelopeExpirationPeriod === null ? Prisma.DbNull : envelopeExpirationPeriod,
             reminderSettings: reminderSettings === null ? Prisma.DbNull : reminderSettings,
+            smsSettings: resolvedSmsSettings,
 
             // Branding related settings.
             brandingEnabled,

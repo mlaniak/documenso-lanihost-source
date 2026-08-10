@@ -11,6 +11,7 @@ import { DocumentSendEmailMessageHelper } from '@documenso/ui/components/documen
 import { cn } from '@documenso/ui/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@documenso/ui/primitives/alert';
 import { Button } from '@documenso/ui/primitives/button';
+import { Checkbox } from '@documenso/ui/primitives/checkbox';
 import {
   Dialog,
   DialogClose,
@@ -39,6 +40,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { match } from 'ts-pattern';
 import * as z from 'zod';
+import { useOptionalCurrentTeam } from '~/providers/team';
 import { getDistributeErrorMessage } from '~/utils/toast-error-messages';
 
 export type EnvelopeDistributeDialogProps = {
@@ -54,6 +56,7 @@ export const ZEnvelopeDistributeFormSchema = z.object({
     subject: z.string(),
     message: z.string(),
     distributionMethod: z.nativeEnum(DocumentDistributionMethod).optional().default(DocumentDistributionMethod.EMAIL),
+    smsEnabled: z.boolean().nullable(),
   }),
 });
 
@@ -67,6 +70,11 @@ export const EnvelopeDistributeDialog = ({
   const organisation = useCurrentOrganisation();
 
   const { envelope, syncEnvelope, isAutosaving, autosaveError } = useCurrentEnvelopeEditor();
+
+  const currentTeam = useOptionalCurrentTeam();
+  // Falls back to off when the team is not in scope: an unexpected text is a
+  // worse failure than a missing one.
+  const smsDefaultOn = currentTeam?.preferences?.smsDefaultOn ?? false;
 
   const { toast } = useToast();
   const { t, i18n } = useLingui();
@@ -85,6 +93,8 @@ export const EnvelopeDistributeDialog = ({
         subject: envelope.documentMeta?.subject ?? '',
         message: envelope.documentMeta?.message ?? '',
         distributionMethod: envelope.documentMeta?.distributionMethod || DocumentDistributionMethod.EMAIL,
+        // Null means inherit; the server reads the effective value at send time.
+        smsEnabled: null,
       },
     },
     resolver: zodResolver(ZEnvelopeDistributeFormSchema),
@@ -427,6 +437,39 @@ export const EnvelopeDistributeDialog = ({
                                       maxLength={5000}
                                     />
                                   </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="meta.smsEnabled"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-start gap-2 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      // Null means "inherit the team default", which is what an
+                                      // untouched envelope should keep doing. Only an explicit
+                                      // click writes true or false onto this document.
+                                      checked={field.value ?? smsDefaultOn}
+                                      onCheckedChange={(checked) => field.onChange(checked === true)}
+                                    />
+                                  </FormControl>
+
+                                  <div className="space-y-1">
+                                    <FormLabel className="font-normal">
+                                      <Trans>Also send a text message</Trans>
+                                    </FormLabel>
+
+                                    <p className="text-muted-foreground text-xs">
+                                      <Trans>
+                                        Texts the signing link to recipients who have a mobile number. Others receive
+                                        email only.
+                                      </Trans>
+                                    </p>
+                                  </div>
+
                                   <FormMessage />
                                 </FormItem>
                               )}

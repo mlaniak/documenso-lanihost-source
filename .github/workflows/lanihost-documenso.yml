@@ -35,6 +35,14 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
 
   image:
+    # Still manual. Enabling this on push was tried and reverted: the remix
+    # build aborts with SIGABRT (exit 134, heap exhaustion) on a standard
+    # hosted runner, while succeeding on the 31 GB VPS. Capping NODE_OPTIONS to
+    # fit the runner risks breaking the build path that actually ships, so the
+    # memory question needs settling before this can gate anything.
+    #
+    # It is worth keeping and worth fixing: two deploys were broken by changes
+    # that passed typecheck and tests but could not produce a container.
     if: github.event_name == 'workflow_dispatch' && inputs.build_image
     needs: validate
     runs-on: ubuntu-latest
@@ -45,6 +53,9 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
+          # Without this the action looks for ./Dockerfile, which does not
+          # exist, so this job could only ever have failed.
+          file: docker/Dockerfile
           push: false
           tags: documenso-lanihost:${{ github.sha }}
           cache-from: type=gha

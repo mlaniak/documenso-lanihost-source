@@ -41,6 +41,7 @@ export const distributeEnvelopeRoute = authenticatedProcedure
         language: meta.language,
         emailId: meta.emailId,
         emailReplyTo: meta.emailReplyTo,
+        smsEnabled: meta.smsEnabled,
         requestMetadata: ctx.metadata,
       });
     }

@@ -6,6 +6,7 @@ import { decryptSecondaryData } from '@documenso/lib/server-only/crypto/decrypt'
 import { getDocumentCertificateAuditLogs } from '@documenso/lib/server-only/document/get-document-certificate-audit-logs';
 import { getOrganisationClaimByTeamId } from '@documenso/lib/server-only/organisation/get-organisation-claims';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '@documenso/lib/types/document-audit-logs';
+import { orderCertificateRecipients } from '@documenso/lib/utils/certificate-recipients';
 import { extractDocumentAuthMethods } from '@documenso/lib/utils/document-auth';
 import { mapSecondaryIdToDocumentId } from '@documenso/lib/utils/envelope';
 import { getTranslations } from '@documenso/lib/utils/i18n';
@@ -79,7 +80,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       },
       qrToken: envelope.qrToken,
       authOptions: envelope.authOptions,
-      recipients: envelope.recipients,
+      recipients: orderCertificateRecipients(envelope.recipients),
       createdAt: envelope.createdAt,
       updatedAt: envelope.updatedAt,
       deletedAt: envelope.deletedAt,

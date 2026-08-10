@@ -41,6 +41,8 @@ import { toCheckboxCustomText, toRadioCustomText } from '../../utils/fields';
 import { getRecipientsWithMissingFields, isRecipientEmailValidForSending } from '../../utils/recipients';
 import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';
 import { insertFormValuesInPdf } from '../pdf/insert-form-values-in-pdf';
+import { enqueueSmsDelivery } from '../sms/enqueue-sms-delivery';
+import { getEnvelopeSmsContext } from '../sms/get-envelope-sms-context';
 import { assertUserNotDisabledById } from '../user/assert-user-not-disabled';
 import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
 
@@ -340,6 +342,13 @@ export const sendDocument = async ({ id, userId, teamId, sendEmail, requestMetad
   // - It is explicitly set
   // - The email is enabled for signing requests AND sendEmail is undefined
   if (sendEmail || (isRecipientSigningRequestEmailEnabled && sendEmail === undefined)) {
+    // Resolved once for the envelope rather than once per recipient: a large
+    // envelope would otherwise repeat the same team settings query per signer.
+    const smsContext = await getEnvelopeSmsContext({
+      teamId,
+      documentSmsEnabled: envelope.documentMeta?.smsEnabled ?? null,
+    }).catch(() => null);
+
     await Promise.all(
       recipientsToNotify.map(async (recipient) => {
         if (recipient.sendStatus === SendStatus.SENT || recipient.role === RecipientRole.CC) {
@@ -354,6 +363,20 @@ export const sendDocument = async ({ id, userId, teamId, sendEmail, requestMetad
             recipientId: recipient.id,
             requestMetadata: requestMetadata?.requestMetadata,
           },
+        });
+
+        // Additive and non-fatal: a failure to queue a text must never stop the
+        // email that carries the same signing link.
+        await enqueueSmsDelivery({
+          envelopeId: envelope.id,
+          recipientId: recipient.id,
+          teamId,
+          documentSmsEnabled: envelope.documentMeta?.smsEnabled ?? null,
+          kind: 'SIGNING_REQUEST',
+          createdById: userId,
+          context: smsContext ?? undefined,
+        }).catch((error) => {
+          console.error('Could not queue a signing request SMS', error);
         });
       }),
     );

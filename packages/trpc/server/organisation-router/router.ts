@@ -19,6 +19,7 @@ import { getOrganisationSessionRoute } from './get-organisation-session';
 import { getOrganisationsRoute } from './get-organisations';
 import { leaveOrganisationRoute } from './leave-organisation';
 import { resendOrganisationMemberInviteRoute } from './resend-organisation-member-invite';
+import { sendTestSmsRoute } from './send-test-sms';
 import { updateOrganisationRoute } from './update-organisation';
 import { updateOrganisationBrandingLogoRoute } from './update-organisation-branding-logo';
 import { updateOrganisationGroupRoute } from './update-organisation-group';
@@ -56,6 +57,7 @@ export const organisationRouter = router({
   },
   settings: {
     update: updateOrganisationSettingsRoute,
+    sendTestSms: sendTestSmsRoute,
     updateBrandingLogo: updateOrganisationBrandingLogoRoute,
   },
   internal: {

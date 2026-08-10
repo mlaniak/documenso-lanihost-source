@@ -3,22 +3,18 @@ import {
   getScheduledReminderIdempotencyKey,
   getScheduledReminderMessageId,
   getScheduledReminderRetryAt,
+  isScheduledDeliveryEligible,
   isScheduledReminderErrorRetryable,
   MAX_SCHEDULED_REMINDER_DELIVERY_ATTEMPTS,
 } from '@documenso/lib/constants/scheduled-reminder-delivery';
 import { prisma } from '@documenso/prisma';
 import type { Envelope, Recipient, ScheduledReminderDelivery, User } from '@prisma/client';
-import {
-  DocumentStatus,
-  RecipientRole,
-  ScheduledReminderDeliveryStatus,
-  ScheduledReminderProviderStatus,
-  SigningStatus,
-} from '@prisma/client';
+import { ScheduledReminderDeliveryStatus, ScheduledReminderProviderStatus } from '@prisma/client';
 
 import { NEXT_PUBLIC_WEBAPP_URL } from '../../../constants/app';
 import { resendDocument } from '../../../server-only/document/resend-document';
 import { updateRecipientNextReminder } from '../../../server-only/recipient/update-recipient-next-reminder';
+import { deliverSmsForDelivery } from '../../../server-only/sms/deliver-sms-for-delivery';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '../../../types/document-audit-logs';
 import { createDocumentAuditLogData } from '../../../utils/document-audit-logs';
 import type { JobRunIO } from '../../client/_internal/job';
@@ -59,17 +55,21 @@ export const processScheduledReminderDelivery = async (options: { deliveryId: st
           user: {
             select: { id: true, email: true, name: true, disabled: true },
           },
+          documentMeta: { select: { smsEnabled: true } },
         },
       },
     },
   });
 
-  const isEligible =
-    delivery.envelope.status === DocumentStatus.PENDING &&
-    delivery.envelope.deletedAt === null &&
-    delivery.recipient.signingStatus === SigningStatus.NOT_SIGNED &&
-    delivery.recipient.role !== RecipientRole.CC &&
-    (!delivery.recipient.expiresAt || delivery.recipient.expiresAt > now);
+  const isEligible = isScheduledDeliveryEligible({
+    kind: delivery.kind,
+    envelopeStatus: delivery.envelope.status,
+    envelopeDeletedAt: delivery.envelope.deletedAt,
+    signingStatus: delivery.recipient.signingStatus,
+    role: delivery.recipient.role,
+    expiresAt: delivery.recipient.expiresAt,
+    now,
+  });
 
   if (!isEligible) {
     await cancelIneligibleDelivery(delivery);
@@ -95,10 +95,14 @@ export const processScheduledReminderDelivery = async (options: { deliveryId: st
 
   const providerMessageId = getScheduledReminderMessageId(delivery.id, NEXT_PUBLIC_WEBAPP_URL());
 
-  await prisma.scheduledReminderDelivery.update({
-    where: { id: delivery.id },
-    data: { providerMessageId },
-  });
+  // Only the email path can know its message id before submission. A Twilio SID
+  // does not exist until the API responds, so an SMS row is stamped after send.
+  if (delivery.channel !== 'SMS') {
+    await prisma.scheduledReminderDelivery.update({
+      where: { id: delivery.id },
+      data: { providerMessageId },
+    });
+  }
 
   const deliveryState = await prisma.scheduledReminderDelivery.findUnique({
     where: { id: delivery.id },
@@ -111,23 +115,55 @@ export const processScheduledReminderDelivery = async (options: { deliveryId: st
   }
 
   try {
-    await resendDocument({
-      id: { type: 'envelopeId', id: delivery.envelopeId },
-      userId: deliveryUser.id,
-      teamId: delivery.envelope.teamId,
-      recipients: [delivery.recipientId],
-      requireEmailDelivery: true,
-      emailDeliveryTracking: {
-        messageId: providerMessageId,
-        idempotencyKey: getScheduledReminderIdempotencyKey(delivery.id),
-      },
-      requestMetadata: {
-        source: 'app',
-        auth: 'session',
-        requestMetadata: { userAgent: 'Documenso scheduled reminder delivery' },
-        auditUser: deliveryUser,
-      },
-    });
+    if (delivery.channel === 'SMS') {
+      const result = await deliverSmsForDelivery({
+        delivery: { id: delivery.id, kind: delivery.kind, recipientId: delivery.recipientId },
+        recipient: { phone: delivery.recipient.phone, token: delivery.recipient.token },
+        envelope: {
+          id: delivery.envelopeId,
+          title: delivery.envelope.title,
+          teamId: delivery.envelope.teamId,
+        },
+        documentSmsEnabled: delivery.envelope.documentMeta?.smsEnabled ?? null,
+      });
+
+      if (result.status !== 'sent') {
+        // Suppressed and throttled are terminal, not transient: retrying would
+        // produce the identical outcome and burn the attempt budget.
+        await recordDeliveryFailure({
+          delivery,
+          error: new Error(`SMS ${result.status}`),
+          isTerminal: true,
+          isRetryable: false,
+        });
+
+        io.logger.info(`Scheduled SMS delivery ${deliveryId} was ${result.status}`);
+        return;
+      }
+
+      await prisma.scheduledReminderDelivery.update({
+        where: { id: delivery.id },
+        data: { providerMessageId: result.providerMessageId },
+      });
+    } else {
+      await resendDocument({
+        id: { type: 'envelopeId', id: delivery.envelopeId },
+        userId: deliveryUser.id,
+        teamId: delivery.envelope.teamId,
+        recipients: [delivery.recipientId],
+        requireEmailDelivery: true,
+        emailDeliveryTracking: {
+          messageId: providerMessageId,
+          idempotencyKey: getScheduledReminderIdempotencyKey(delivery.id),
+        },
+        requestMetadata: {
+          source: 'app',
+          auth: 'session',
+          requestMetadata: { userAgent: 'Documenso scheduled reminder delivery' },
+          auditUser: deliveryUser,
+        },
+      });
+    }
 
     const sentAt = new Date();
 
@@ -376,4 +412,9 @@ const getAuditData = (delivery: ScheduledReminderDeliveryContext) => ({
   recipientRole: delivery.recipient.role,
   scheduledReminderId: delivery.id,
   scheduledAt: delivery.scheduledAt.toISOString(),
+  // The audit log type is REMINDER_SENT for every delivery this worker makes,
+  // which would otherwise describe a completion text as a reminder. The audit
+  // trail is evidence on a signing platform, so record what was actually sent.
+  channel: delivery.channel,
+  kind: delivery.kind,
 });

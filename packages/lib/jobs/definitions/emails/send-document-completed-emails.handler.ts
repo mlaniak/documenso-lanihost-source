@@ -8,6 +8,7 @@ import { getI18nInstance } from '../../../client-only/providers/i18n-server';
 import { NEXT_PUBLIC_WEBAPP_URL } from '../../../constants/app';
 import { getEmailContext } from '../../../server-only/email/get-email-context';
 import { assertOrganisationRatesAndLimits } from '../../../server-only/rate-limit/assert-organisation-rates-and-limits';
+import { enqueueSmsDelivery } from '../../../server-only/sms/enqueue-sms-delivery';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '../../../types/document-audit-logs';
 import { extractDerivedDocumentEmailSettings } from '../../../types/document-email';
 import { getFileServerSide } from '../../../universal/upload/get-file.server';
@@ -201,6 +202,22 @@ export const run = async ({ payload, io }: { payload: TSendDocumentCompletedEmai
           // On rate/quota exceeded, early return to allow other recipients to be processed.
           return;
         }
+      }
+
+      // Additive and non-fatal: a queued text must never break the completion
+      // email that carries the signed copy. CC recipients are skipped here
+      // rather than enqueued and cancelled later by the worker.
+      if (recipient.role !== RecipientRole.CC) {
+        await enqueueSmsDelivery({
+          envelopeId: envelope.id,
+          recipientId: recipient.id,
+          teamId: envelope.teamId,
+          documentSmsEnabled: envelope.documentMeta?.smsEnabled ?? null,
+          kind: 'COMPLETION',
+          createdById: envelope.userId,
+        }).catch((error) => {
+          io.logger.warn({ msg: 'Could not queue a completion SMS', error });
+        });
       }
 
       const customEmailTemplate = {
