@@ -85,7 +85,7 @@
     "zod-prisma-types": "3.3.5"
   },
   "dependencies": {
-    "@ai-sdk/google-vertex": "3.0.81",
+    "@ai-sdk/google-vertex": "3.0.173",
     "@documenso/prisma": "*",
     "@libpdf/core": "^0.4.1",
     "@lingui/conf": "^5.6.0",
