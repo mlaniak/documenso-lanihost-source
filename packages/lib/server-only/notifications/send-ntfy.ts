@@ -1,3 +1,4 @@
+import { AppError, AppErrorCode } from '../../errors/app-error';
 import { decryptSmsAuthToken } from '../sms/sms-credentials';
 import { getNtfyOrigin } from './settings';
 
@@ -11,7 +12,7 @@ export const sendNtfy = async (options: {
 }) => {
   const origin = getNtfyOrigin(options.serverUrl);
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(options.topic)) {
-    throw new Error('Invalid ntfy topic');
+    throw new AppError(AppErrorCode.INVALID_REQUEST, { message: 'Invalid ntfy topic' });
   }
   // Fail closed for accidentally public topics. Never put credentials in a URL.
   const anonymous = await fetch(`${origin}/${options.topic}/json?poll=1`, {
@@ -20,7 +21,9 @@ export const sendNtfy = async (options: {
   });
   await anonymous.body?.cancel();
   if (![401, 403].includes(anonymous.status)) {
-    throw new Error('ntfy topic privacy could not be verified; publishing was blocked');
+    throw new AppError(AppErrorCode.FORBIDDEN, {
+      message: 'ntfy topic privacy could not be verified; publishing was blocked',
+    });
   }
   const response = await fetch(origin, {
     method: 'POST',
@@ -37,6 +40,6 @@ export const sendNtfy = async (options: {
   await response.body?.cancel();
   if (!response.ok) {
     // Deliberately exclude body/URL/token from errors and job logs.
-    throw new Error(`ntfy rejected the notification (${response.status})`);
+    throw new AppError(AppErrorCode.UNKNOWN_ERROR, { message: `ntfy rejected the notification (${response.status})` });
   }
 };

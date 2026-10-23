@@ -3,7 +3,7 @@ import {
   emptyDocumentNotificationSettings,
   NOTIFICATION_EVENTS,
 } from '@documenso/lib/types/document-notification-settings';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 
 import { Button } from '../../primitives/button';
 import { Checkbox } from '../../primitives/checkbox';
@@ -18,6 +18,7 @@ export type NotificationSettingsPickerProps = {
 };
 
 export const NotificationSettingsPicker = ({ value, onChange, canInherit }: NotificationSettingsPickerProps) => {
+  const { t } = useLingui();
   const settings = value ?? emptyDocumentNotificationSettings();
   const update = (patch: Partial<DocumentNotificationSettingsForm>) => onChange({ ...settings, ...patch });
   const staff = settings.staff;
@@ -27,7 +28,7 @@ export const NotificationSettingsPicker = ({ value, onChange, canInherit }: Noti
         value={value ? 'custom' : 'inherit'}
         onValueChange={(mode) => onChange(mode === 'inherit' ? null : emptyDocumentNotificationSettings())}
       >
-        <SelectTrigger aria-label="Additional notification settings">
+        <SelectTrigger aria-label={t`Additional notification settings`}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -41,7 +42,7 @@ export const NotificationSettingsPicker = ({ value, onChange, canInherit }: Noti
       </Select>
       {value && (
         <>
-          <section className="space-y-4 rounded-md border border-border p-4" aria-label="Signer push notifications">
+          <section className="space-y-4 rounded-md border border-border p-4" aria-label={t`Signer push notifications`}>
             <div>
               <h4 className="font-medium text-sm">
                 <Trans>Recipients / signers</Trans>
@@ -142,7 +143,10 @@ export const NotificationSettingsPicker = ({ value, onChange, canInherit }: Noti
               </div>
             )}
           </section>
-          <section className="space-y-4 rounded-md border border-border p-4" aria-label="Internal staff notifications">
+          <section
+            className="space-y-4 rounded-md border border-border p-4"
+            aria-label={t`Internal staff notifications`}
+          >
             <div>
               <h4 className="font-medium text-sm">
                 <Trans>Me / internal staff</Trans>
@@ -166,7 +170,7 @@ export const NotificationSettingsPicker = ({ value, onChange, canInherit }: Noti
                 {staff.phones.map((phone, index) => (
                   <div className="flex gap-2" key={index}>
                     <Input
-                      aria-label={`Staff mobile ${index + 1}`}
+                      aria-label={t`Staff mobile ${index + 1}`}
                       type="tel"
                       value={phone}
                       placeholder="+18325550101"
@@ -177,7 +181,7 @@ export const NotificationSettingsPicker = ({ value, onChange, canInherit }: Noti
                       }
                     />
                     <Button
-                      aria-label={`Remove staff mobile ${index + 1}`}
+                      aria-label={t`Remove staff mobile ${index + 1}`}
                       type="button"
                       variant="outline"
                       onClick={() =>
@@ -257,7 +261,7 @@ export const NotificationSettingsPicker = ({ value, onChange, canInherit }: Noti
             </div>
           </section>
           {(settings.signers.ntfyEnabled || staff.ntfyEnabled) && (
-            <section className="space-y-3 rounded-md border border-border p-4" aria-label="Company ntfy connection">
+            <section className="space-y-3 rounded-md border border-border p-4" aria-label={t`Company ntfy connection`}>
               <h4 className="font-medium text-sm">
                 <Trans>Company ntfy connection</Trans>
               </h4>
@@ -278,7 +282,7 @@ export const NotificationSettingsPicker = ({ value, onChange, canInherit }: Noti
                 type="password"
                 autoComplete="off"
                 value={settings.ntfy.newToken ?? ''}
-                placeholder={settings.ntfy.hasToken ? '•••••••• (leave blank to keep)' : ''}
+                placeholder={settings.ntfy.hasToken ? t`•••••••• (leave blank to keep)` : ''}
                 onChange={(e) => update({ ntfy: { ...settings.ntfy, newToken: e.target.value } })}
               />
               <p className="text-muted-foreground text-xs">

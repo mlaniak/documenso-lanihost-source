@@ -10,6 +10,7 @@ import {
   ZEmbedCreateEnvelopeAuthoringSchema,
 } from '@documenso/lib/types/envelope-editor';
 import type { TEnvelopeFieldAndMeta } from '@documenso/lib/types/field-meta';
+import { omitNotificationConnections } from '@documenso/lib/types/sms-settings';
 import { extractDerivedDocumentMeta } from '@documenso/lib/utils/document';
 import { buildEmbeddedEditorOptions, buildEmbeddedFeatures } from '@documenso/lib/utils/embed-config';
 import { prisma } from '@documenso/prisma';
@@ -80,7 +81,7 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
     token,
     tokenUserId: result.userId,
     tokenTeamId: result.teamId,
-    teamSettings,
+    teamSettings: omitNotificationConnections(teamSettings),
     organisationEmails,
   });
 };

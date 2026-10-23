@@ -14937,3 +14937,42 @@ msgstr "Uses the saved company credentials. Owning a number does not verify its 
 #: packages/ui/components/document/sms-settings-picker.tsx
 msgid "Uses the entered company credentials, or the same saved account if the token is blank. Number ownership does not verify registration or consent eligibility."
 msgstr "Uses the entered company credentials, or the same saved account if the token is blank. Number ownership does not verify registration or consent eligibility."
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "•••••••• (leave blank to keep)"
+msgstr "•••••••• (leave blank to keep)"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Additional notification settings"
+msgstr "Additional notification settings"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Choose a sender"
+msgstr "Choose a sender"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Company Twilio sender"
+msgstr "Company Twilio sender"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Could not load senders. Check the company account and token, then try again."
+msgstr "Could not load senders. Check the company account and token, then try again."
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Internal staff notifications"
+msgstr "Internal staff notifications"
+
+#. placeholder {0}: index + 1
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Remove staff mobile {0}"
+msgstr "Remove staff mobile {0}"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Signer push notifications"
+msgstr "Signer push notifications"
+
+#. placeholder {0}: index + 1
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Staff mobile {0}"
+msgstr "Staff mobile {0}"
