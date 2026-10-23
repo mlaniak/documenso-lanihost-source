@@ -1,5 +1,6 @@
 import { ZRecipientActionAuthTypesSchema } from '@documenso/lib/types/document-auth';
 import { ZRecipientEmailSchema, ZRecipientLiteSchema } from '@documenso/lib/types/recipient';
+import { ZRecipientPhoneSchema } from '@documenso/lib/types/recipient-phone';
 import { EnvelopeType, RecipientRole } from '@prisma/client';
 import { z } from 'zod';
 
@@ -7,7 +8,7 @@ export const ZSetEnvelopeRecipientSchema = z.object({
   id: z.number().optional(),
   email: ZRecipientEmailSchema,
   /** Optional mobile for SMS notifications. Normalised server-side. */
-  phone: z.string().max(20).optional(),
+  phone: ZRecipientPhoneSchema.optional(),
   name: z.string().max(255),
   role: z.nativeEnum(RecipientRole),
   signingOrder: z.number().optional(),

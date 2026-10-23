@@ -52,6 +52,7 @@ export const ZDocumentSchema = LegacyDocumentSchema.pick({
   }),
   documentMeta: DocumentMetaSchema.pick({
     signingOrder: true,
+    smsEnabled: true,
     distributionMethod: true,
     id: true,
     subject: true,

@@ -18,8 +18,9 @@ import {
   SigningStatus,
 } from '@prisma/client';
 import { nanoid } from 'nanoid';
-
+import type { TReminderRecipientPhone } from '../../types/recipient-phone';
 import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';
+import { updateReminderRecipientPhones } from '../recipient/update-reminder-recipient-phones';
 import { enqueueSmsDelivery } from '../sms/enqueue-sms-delivery';
 import { assertUserNotDisabled } from '../user/assert-user-not-disabled';
 
@@ -32,6 +33,8 @@ export type UpdateDocumentReminderScheduleOptions = {
   timezone?: string;
   total?: number;
   intervalDays?: number | null;
+  recipientPhones?: TReminderRecipientPhone[];
+  smsEnabled?: boolean;
 };
 
 export const updateDocumentReminderSchedule = async ({
@@ -43,6 +46,8 @@ export const updateDocumentReminderSchedule = async ({
   timezone = 'Etc/UTC',
   total = 1,
   intervalDays = null,
+  recipientPhones,
+  smsEnabled,
 }: UpdateDocumentReminderScheduleOptions) => {
   const user = await prisma.user.findFirstOrThrow({
     where: { id: userId },
@@ -128,6 +133,22 @@ export const updateDocumentReminderSchedule = async ({
     : null;
 
   await prisma.$transaction(async (tx) => {
+    if (scheduledAt) {
+      await updateReminderRecipientPhones({
+        tx,
+        envelopeId: envelope.id,
+        eligibleRecipientIds: eligibleRecipients.map((recipient) => recipient.id),
+        recipientPhones,
+      });
+
+      if (smsEnabled !== undefined) {
+        await tx.documentMeta.update({
+          where: { id: envelope.documentMeta.id },
+          data: { smsEnabled },
+        });
+      }
+    }
+
     for (const recipient of eligibleRecipients) {
       const automaticReminderAt = recipient.sentAt
         ? resolveNextReminderAt({
@@ -258,7 +279,7 @@ export const updateDocumentReminderSchedule = async ({
             envelopeId: envelope.id,
             recipientId,
             teamId,
-            documentSmsEnabled: envelope.documentMeta?.smsEnabled ?? null,
+            documentSmsEnabled: smsEnabled ?? envelope.documentMeta?.smsEnabled ?? null,
             kind: 'REMINDER',
             createdById: userId,
             scheduledAt: deliveryAt,

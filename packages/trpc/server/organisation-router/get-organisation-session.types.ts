@@ -21,6 +21,7 @@ export const ZGetOrganisationSessionResponseSchema = ZOrganisationSchema.extend(
         aiFeaturesEnabled: z.boolean(),
         /** Whether the send dialog should tick "also send a text" by default. */
         smsDefaultOn: z.boolean(),
+        smsAvailable: z.boolean().optional(),
       }),
     }),
   ),

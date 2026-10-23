@@ -21,6 +21,7 @@ import { createElement } from 'react';
 import { getI18nInstance } from '../../client-only/providers/i18n-server';
 import { NEXT_PUBLIC_WEBAPP_URL } from '../../constants/app';
 import { extractDerivedDocumentEmailSettings } from '../../types/document-email';
+import type { TReminderRecipientPhone } from '../../types/recipient-phone';
 import { mapEnvelopeToWebhookDocumentPayload, ZWebhookDocumentSchema } from '../../types/webhook-payload';
 import { isDocumentCompleted } from '../../utils/document';
 import type { EnvelopeIdOptions } from '../../utils/envelope';
@@ -31,6 +32,7 @@ import { getEmailContext } from '../email/get-email-context';
 import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';
 import { assertOrganisationRatesAndLimits } from '../rate-limit/assert-organisation-rates-and-limits';
 import { updateRecipientNextReminder } from '../recipient/update-recipient-next-reminder';
+import { updateReminderRecipientPhones } from '../recipient/update-reminder-recipient-phones';
 import { enqueueSmsDelivery } from '../sms/enqueue-sms-delivery';
 import { assertUserNotDisabled } from '../user/assert-user-not-disabled';
 import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
@@ -42,6 +44,7 @@ export type ResendDocumentOptions = {
   teamId: number;
   requestMetadata: ApiRequestMetadata;
   requireEmailDelivery?: boolean;
+  recipientPhones?: TReminderRecipientPhone[];
   emailDeliveryTracking?: {
     messageId: string;
     idempotencyKey: string;
@@ -55,6 +58,7 @@ export const resendDocument = async ({
   teamId,
   requestMetadata,
   requireEmailDelivery = false,
+  recipientPhones,
   emailDeliveryTracking,
 }: ResendDocumentOptions) => {
   const user = await prisma.user.findFirstOrThrow({
@@ -140,6 +144,17 @@ export const resendDocument = async ({
       recipient.signingStatus === SigningStatus.NOT_SIGNED &&
       recipient.role !== RecipientRole.CC,
   );
+
+  if (recipientPhones?.length) {
+    await prisma.$transaction((tx) =>
+      updateReminderRecipientPhones({
+        tx,
+        envelopeId: envelope.id,
+        eligibleRecipientIds: recipientsToRemind.map((recipient) => recipient.id),
+        recipientPhones,
+      }),
+    );
+  }
 
   if (requireEmailDelivery && recipientsToRemind.length !== recipients.length) {
     throw new AppError(AppErrorCode.INVALID_REQUEST, {

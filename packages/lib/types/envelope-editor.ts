@@ -269,6 +269,7 @@ export const ZEditorEnvelopeSchema = EnvelopeSchema.pick({
 }).extend({
   documentMeta: DocumentMetaSchema.pick({
     signingOrder: true,
+    smsEnabled: true,
     distributionMethod: true,
     id: true,
     subject: true,
