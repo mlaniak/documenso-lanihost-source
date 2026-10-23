@@ -207,6 +207,10 @@ choose **Also send a text message**. The destination appears below the field.
 Numbers entered in the reminder dialog are saved when sending or scheduling;
 Cancel discards edits. Leaving the number blank keeps that recipient email-only.
 
+If SMS is off for the current team, the dialog explains email-only delivery and
+links to **Set up SMS** in that team's Document Preferences. Phone numbers can
+still be entered. The setup link opens separately to preserve the open form.
+
 The same SMS choice applies to immediate reminders and scheduled reminders or
 sequences. At least one selected recipient must have a valid number when SMS is
 checked. Team sender configuration, opt-outs, quotas, and provider delivery

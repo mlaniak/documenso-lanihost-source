@@ -90,6 +90,7 @@ export const getOrganisationSession = async ({
             aiFeaturesEnabled: derivedSettings.aiFeaturesEnabled,
             // Derived here so the send dialog can tick the box without a
             // second round trip. Only the non-secret parts are used.
+            smsAvailable: parseSmsSettings(derivedSettings.smsSettings).enabled,
             smsDefaultOn: (() => {
               const sms = parseSmsSettings(derivedSettings.smsSettings);
 

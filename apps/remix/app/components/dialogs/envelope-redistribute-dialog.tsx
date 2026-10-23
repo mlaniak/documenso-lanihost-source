@@ -31,6 +31,7 @@ import { DocumentStatus, EnvelopeType, RecipientRole, SigningStatus } from '@pri
 import { CalendarClockIcon, Loader2Icon, XIcon } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { Link } from 'react-router';
 import { match } from 'ts-pattern';
 import * as z from 'zod';
 import { useOptionalCurrentTeam } from '~/providers/team';
@@ -123,13 +124,14 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
 
   const currentTeam = useOptionalCurrentTeam();
   const smsDefaultOn = currentTeam?.preferences?.smsDefaultOn ?? false;
+  const smsAvailable = currentTeam?.preferences?.smsAvailable ?? false;
   const { mutateAsync: updateReminderSchedule, isPending: isUpdatingReminderSchedule } =
     trpcReact.envelope.reminderSchedule.update.useMutation();
 
   const form = useForm<TEnvelopeRedistributeFormSchema>({
     defaultValues: {
       recipients: [],
-      smsEnabled: envelope.documentMeta?.smsEnabled ?? smsDefaultOn,
+      smsEnabled: smsAvailable && (envelope.documentMeta?.smsEnabled ?? smsDefaultOn),
       recipientPhones: Object.fromEntries(
         recipients.map((recipient) => [`recipient_${recipient.id}`, recipient.phone ?? '']),
       ),
@@ -187,7 +189,7 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
           scheduledAt: new Date(scheduledAt),
           timezone: localTimeZone,
           recipientPhones: phoneUpdates,
-          smsEnabled,
+          smsEnabled: smsAvailable ? smsEnabled : undefined,
           total: scheduleType === 'sequence' ? total : 1,
           intervalDays: scheduleType === 'sequence' ? intervalDays : null,
         });
@@ -217,7 +219,12 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
         return;
       }
 
-      await redistributeEnvelope({ envelopeId: envelope.id, recipients, smsEnabled, recipientPhones: phoneUpdates });
+      await redistributeEnvelope({
+        envelopeId: envelope.id,
+        recipients,
+        smsEnabled: smsAvailable ? smsEnabled : undefined,
+        recipientPhones: phoneUpdates,
+      });
       await refreshReminderData();
 
       const successMessage = match(envelopeType)
@@ -292,7 +299,7 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
 
     form.reset({
       ...form.getValues(),
-      smsEnabled: envelope.documentMeta?.smsEnabled ?? smsDefaultOn,
+      smsEnabled: smsAvailable && (envelope.documentMeta?.smsEnabled ?? smsDefaultOn),
       recipientPhones: Object.fromEntries(
         recipients.map((recipient) => [`recipient_${recipient.id}`, recipient.phone ?? '']),
       ),
@@ -454,7 +461,11 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
                 render={({ field }) => (
                   <FormItem className="mt-4 flex flex-row items-start gap-2 space-y-0 rounded-md border p-3">
                     <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={(checked) => field.onChange(checked === true)} />
+                      <Checkbox
+                        disabled={!smsAvailable}
+                        checked={field.value}
+                        onCheckedChange={(checked) => field.onChange(checked === true)}
+                      />
                     </FormControl>
 
                     <div className="space-y-1">
@@ -462,6 +473,21 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
                         <Trans>Also send a text message</Trans>
                       </FormLabel>
 
+                      {!smsAvailable && (
+                        <p className="text-muted-foreground text-xs" role="status">
+                          <Trans>Text messages are off for this team. This reminder will use email only.</Trans>{' '}
+                          {currentTeam && (
+                            <Link
+                              className="font-medium text-primary underline underline-offset-4"
+                              to={`/t/${currentTeam.url}/settings/document`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Trans>Set up SMS</Trans>
+                            </Link>
+                          )}
+                        </p>
+                      )}
                       <p className="text-muted-foreground text-xs">
                         {smsEnabled && smsRecipientCount > 0 ? (
                           plural(smsRecipientCount, {
