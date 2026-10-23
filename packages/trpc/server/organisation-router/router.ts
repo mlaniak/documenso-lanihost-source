@@ -18,6 +18,7 @@ import { getOrganisationQuotaFlagsRoute } from './get-organisation-quota-flags';
 import { getOrganisationSessionRoute } from './get-organisation-session';
 import { getOrganisationsRoute } from './get-organisations';
 import { leaveOrganisationRoute } from './leave-organisation';
+import { listSmsSendersRoute } from './list-sms-senders';
 import { resendOrganisationMemberInviteRoute } from './resend-organisation-member-invite';
 import { sendTestSmsRoute } from './send-test-sms';
 import { updateOrganisationRoute } from './update-organisation';
@@ -58,6 +59,7 @@ export const organisationRouter = router({
   settings: {
     update: updateOrganisationSettingsRoute,
     sendTestSms: sendTestSmsRoute,
+    listSmsSenders: listSmsSendersRoute,
     updateBrandingLogo: updateOrganisationBrandingLogoRoute,
   },
   internal: {

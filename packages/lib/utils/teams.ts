@@ -205,6 +205,7 @@ export const generateDefaultTeamSettings = (): Omit<TeamGlobalSettings, 'id' | '
 
     reminderSettings: null,
     smsSettings: null,
+    notificationSettings: null,
 
     aiFeaturesEnabled: null,
   };

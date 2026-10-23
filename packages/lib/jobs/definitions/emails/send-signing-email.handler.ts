@@ -11,12 +11,12 @@ import {
   SendStatus,
 } from '@prisma/client';
 import { createElement } from 'react';
-
 import { getI18nInstance } from '../../../client-only/providers/i18n-server';
 import { NEXT_PUBLIC_WEBAPP_URL } from '../../../constants/app';
 import { RECIPIENT_ROLE_TO_EMAIL_TYPE, RECIPIENT_ROLES_DESCRIPTION } from '../../../constants/recipient-roles';
 import { buildEnvelopeEmailHeaders } from '../../../server-only/email/build-envelope-email-headers';
 import { getEmailContext } from '../../../server-only/email/get-email-context';
+import { enqueueDocumentNotification } from '../../../server-only/notifications/document-notifications';
 import { assertOrganisationRatesAndLimits } from '../../../server-only/rate-limit/assert-organisation-rates-and-limits';
 import { updateRecipientNextReminder } from '../../../server-only/recipient/update-recipient-next-reminder';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '../../../types/document-audit-logs';
@@ -80,6 +80,16 @@ export const run = async ({ payload, io }: { payload: TSendSigningEmailJobDefini
   if (recipient.role === RecipientRole.CC) {
     return;
   }
+
+  await enqueueDocumentNotification({
+    envelopeId: envelope.id,
+    teamId: envelope.teamId,
+    recipientId,
+    audience: 'SIGNER',
+    event: 'SIGNING_REQUEST',
+  }).catch(() => {
+    io.logger.warn('Could not queue signer push notification');
+  });
 
   const isRecipientSigningRequestEmailEnabled = extractDerivedDocumentEmailSettings(
     envelope.documentMeta,

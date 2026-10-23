@@ -13,6 +13,8 @@ import type { TClaimFlags } from '@documenso/lib/types/subscription';
 declare global {
   namespace PrismaJson {
     type ClaimFlags = TClaimFlags;
+    type DocumentNotificationSettings =
+      import('@documenso/lib/types/document-notification-settings').DocumentNotificationSettings;
 
     type DocumentFormValues = TDocumentFormValues;
     type DocumentAuthOptions = TDocumentAuthOptions;

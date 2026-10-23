@@ -53,6 +53,7 @@ export const createOrganisation = async ({ name, url, type, userId, customerId, 
       data: {
         ...generateDefaultOrganisationSettings(),
         defaultRecipients: Prisma.DbNull,
+        notificationSettings: Prisma.DbNull,
         id: generateDatabaseId('org_setting'),
       },
     });

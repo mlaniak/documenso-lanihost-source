@@ -36,6 +36,7 @@ export default function OrganisationSettingsDocumentPage() {
 
   const { t } = useLingui();
   const { toast } = useToast();
+  const trpcUtils = trpc.useUtils();
 
   const isPersonalLayoutMode = isPersonalLayout(organisations);
 
@@ -84,6 +85,7 @@ export default function OrganisationSettingsDocumentPage() {
         envelopeExpirationPeriod,
         reminderSettings,
         smsSettings,
+        notificationSettings,
       } = data;
 
       if (
@@ -117,6 +119,7 @@ export default function OrganisationSettingsDocumentPage() {
           envelopeExpirationPeriod: envelopeExpirationPeriod ?? undefined,
           reminderSettings: reminderSettings ?? undefined,
           smsSettings,
+          notificationSettings,
         },
       });
 
@@ -127,7 +130,7 @@ export default function OrganisationSettingsDocumentPage() {
     } catch (err) {
       toast({
         title: t`Something went wrong!`,
-        description: t`We were unable to update your document preferences at this time, please try again later`,
+        description: AppError.parseError(err).message,
         variant: 'destructive',
       });
 
@@ -158,6 +161,9 @@ export default function OrganisationSettingsDocumentPage() {
           isAiFeaturesConfigured={isAiFeaturesConfigured}
           settings={organisationWithSettings.organisationGlobalSettings}
           onSendTestSms={onSendTestSms}
+          onLoadSmsSenders={() =>
+            trpcUtils.organisation.settings.listSmsSenders.fetch({ organisationId: organisation.id })
+          }
           onFormSubmit={onDocumentPreferencesFormSubmit}
         />
       </section>

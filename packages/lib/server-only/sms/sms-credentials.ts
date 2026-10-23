@@ -106,6 +106,16 @@ export const mergeSmsSettingsForStorage = (options: {
 
   const existingAuthToken = typeof storedRecord.authToken === 'string' ? storedRecord.authToken : undefined;
 
+  if (
+    storedRecord.accountSid &&
+    storedRecord.accountSid !== options.submitted.accountSid &&
+    !options.submitted.newAuthToken
+  ) {
+    throw new AppError(AppErrorCode.INVALID_REQUEST, {
+      message: 'Enter the new account’s auth token when changing Twilio accounts',
+    });
+  }
+
   const authToken = options.submitted.newAuthToken
     ? encryptSmsAuthToken(options.submitted.newAuthToken)
     : existingAuthToken;

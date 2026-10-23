@@ -460,6 +460,7 @@ model Envelope {
   shareLinks                  DocumentShareLink[]
   auditLogs                   DocumentAuditLog[]
   scheduledReminderDeliveries ScheduledReminderDelivery[]
+  notificationDeliveries DocumentNotificationDelivery[]
 
   // Envelope settings
   authOptions Json? /// [DocumentAuthOptions] @zod.custom.use(ZDocumentAuthOptionsSchema)
@@ -783,6 +784,28 @@ model ScheduledReminderDelivery {
   @@index([sequenceId, sequencePosition])
 }
 
+// Durable outbox for additional signer push and internal staff notifications.
+model DocumentNotificationDelivery {
+  id String @id
+  envelopeId String
+  envelope Envelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  recipientId Int?
+  audience String
+  channel String
+  event String
+  routeKey String
+  status String @default("PENDING")
+  attemptCount Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  claimedAt DateTime?
+  acceptedAt DateTime?
+  providerMessageId String?
+  lastError String?
+  createdAt DateTime @default(now())
+  @@index([status, nextAttemptAt])
+  @@index([envelopeId, createdAt])
+}
+
 model ScheduledReminderProviderEvent {
   id String @id
 
@@ -1082,7 +1105,7 @@ enum OrganisationMemberInviteStatus {
   DECLINED
 }
 
-/// @zod.import(["import { ZDocumentEmailSettingsSchema } from '@documenso/lib/types/document-email';", "import { ZDefaultRecipientsSchema } from '@documenso/lib/types/default-recipients';", "import { ZEnvelopeExpirationPeriod as ZEnvelopeExpirationPeriodSchema } from '@documenso/lib/constants/envelope-expiration';", "import { ZEnvelopeReminderSettings as ZEnvelopeReminderSettingsSchema } from '@documenso/lib/constants/envelope-reminder';", "import { ZCssVarsSchema } from '@documenso/lib/types/css-vars';", "import { ZSmsSettingsSchema } from '@documenso/lib/types/sms-settings';"])
+/// @zod.import(["import { ZDocumentEmailSettingsSchema } from '@documenso/lib/types/document-email';", "import { ZDefaultRecipientsSchema } from '@documenso/lib/types/default-recipients';", "import { ZEnvelopeExpirationPeriod as ZEnvelopeExpirationPeriodSchema } from '@documenso/lib/constants/envelope-expiration';", "import { ZEnvelopeReminderSettings as ZEnvelopeReminderSettingsSchema } from '@documenso/lib/constants/envelope-reminder';", "import { ZCssVarsSchema } from '@documenso/lib/types/css-vars';", "import { ZSmsSettingsSchema } from '@documenso/lib/types/sms-settings';", "import { ZDocumentNotificationSettingsSchema } from '@documenso/lib/types/document-notification-settings';"])
 model OrganisationGlobalSettings {
   id           String        @id
   organisation Organisation?
@@ -1122,11 +1145,13 @@ model OrganisationGlobalSettings {
 
   smsSettings Json? /// [SmsSettings] @zod.custom.use(ZSmsSettingsSchema)
 
+  notificationSettings Json? /// [DocumentNotificationSettings] @zod.custom.use(ZDocumentNotificationSettingsSchema)
+
   // AI features settings.
   aiFeaturesEnabled Boolean @default(false)
 }
 
-/// @zod.import(["import { ZDocumentEmailSettingsSchema } from '@documenso/lib/types/document-email';", "import { ZDefaultRecipientsSchema } from '@documenso/lib/types/default-recipients';", "import { ZEnvelopeExpirationPeriod as ZEnvelopeExpirationPeriodSchema } from '@documenso/lib/constants/envelope-expiration';", "import { ZEnvelopeReminderSettings as ZEnvelopeReminderSettingsSchema } from '@documenso/lib/constants/envelope-reminder';", "import { ZCssVarsSchema } from '@documenso/lib/types/css-vars';", "import { ZSmsSettingsSchema } from '@documenso/lib/types/sms-settings';"])
+/// @zod.import(["import { ZDocumentEmailSettingsSchema } from '@documenso/lib/types/document-email';", "import { ZDefaultRecipientsSchema } from '@documenso/lib/types/default-recipients';", "import { ZEnvelopeExpirationPeriod as ZEnvelopeExpirationPeriodSchema } from '@documenso/lib/constants/envelope-expiration';", "import { ZEnvelopeReminderSettings as ZEnvelopeReminderSettingsSchema } from '@documenso/lib/constants/envelope-reminder';", "import { ZCssVarsSchema } from '@documenso/lib/types/css-vars';", "import { ZSmsSettingsSchema } from '@documenso/lib/types/sms-settings';", "import { ZDocumentNotificationSettingsSchema } from '@documenso/lib/types/document-notification-settings';"])
 model TeamGlobalSettings {
   id   String @id
   team Team?
@@ -1166,6 +1191,8 @@ model TeamGlobalSettings {
   reminderSettings Json? /// [EnvelopeReminderSettings] @zod.custom.use(ZEnvelopeReminderSettingsSchema)
 
   smsSettings Json? /// [SmsSettings] @zod.custom.use(ZSmsSettingsSchema)
+
+  notificationSettings Json? /// [DocumentNotificationSettings] @zod.custom.use(ZDocumentNotificationSettingsSchema)
 
   // AI features settings.
   aiFeaturesEnabled Boolean?

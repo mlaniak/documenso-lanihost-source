@@ -14725,3 +14725,211 @@ msgstr "Your verification code:"
 #: apps/remix/app/routes/_authenticated+/o.$orgUrl.settings.sso.tsx
 msgid "your-domain.com another-domain.com"
 msgstr "your-domain.com another-domain.com"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "A recipient signs"
+msgstr "A recipient signs"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "A token is saved. Leave this blank to keep it, or enter a new one to replace it."
+msgstr "A token is saved. Leave this blank to keep it, or enter a new one to replace it."
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Add authorised staff mobile"
+msgstr "Add authorised staff mobile"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Add signer subscription"
+msgstr "Add signer subscription"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Additional notifications off"
+msgstr "Additional notifications off"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Brand name"
+msgstr "Brand name"
+
+#: apps/remix/app/components/forms/document-preferences-form.tsx
+msgid "Check the notification fields: use valid enrolled recipients, private topics, and international mobile numbers."
+msgstr "Check the notification fields: use valid enrolled recipients, private topics, and international mobile numbers."
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Company ntfy connection"
+msgstr "Company ntfy connection"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Custom signer and staff notifications"
+msgstr "Custom signer and staff notifications"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Do not send text messages"
+msgstr "Do not send text messages"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Each business has its own Twilio account. Use the credentials from the account that owns the sending number below."
+msgstr "Each business has its own Twilio account. Use the credentials from the account that owns the sending number below."
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Each person must subscribe to a private topic restricted to them. Push links open their authenticated inbox; signing links remain in email."
+msgstr "Each person must subscribe to a private topic restricted to them. Push links open their authenticated inbox; signing links remain in email."
+
+#: apps/remix/app/components/forms/document-preferences-form.tsx
+msgid "Email and signer SMS keep their existing settings. New routes stay off until configured here."
+msgstr "Email and signer SMS keep their existing settings. New routes stay off until configured here."
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Grant read access only to the intended company staff. Keep this topic separate from all signer topics."
+msgstr "Grant read access only to the intended company staff. Keep this topic separate from all signer topics."
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "In E.164 format, starting with a plus and country code. The number must belong to the account above."
+msgstr "In E.164 format, starting with a plus and country code. The number must belong to the account above."
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Incoming message webhook"
+msgstr "Incoming message webhook"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Leave blank to keep any saved token, or enter one to set or replace it."
+msgstr "Leave blank to keep any saved token, or enter one to set or replace it."
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Load this account’s sender numbers"
+msgstr "Load this account’s sender numbers"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Me / internal staff"
+msgstr "Me / internal staff"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "No token is saved yet. SMS cannot send until one is entered."
+msgstr "No token is saved yet. SMS cannot send until one is entered."
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Notify staff when"
+msgstr "Notify staff when"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "ntfy delivers app/browser push, not ordinary SMS. A provider acceptance does not confirm phone or desktop receipt."
+msgstr "ntfy delivers app/browser push, not ordinary SMS. A provider acceptance does not confirm phone or desktop receipt."
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "ntfy server"
+msgstr "ntfy server"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Off unless turned on per document"
+msgstr "Off unless turned on per document"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "On for new documents"
+msgstr "On for new documents"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Private staff topic"
+msgstr "Private staff topic"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Private topic"
+msgstr "Private topic"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Publisher token"
+msgstr "Publisher token"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Recipients / signers"
+msgstr "Recipients / signers"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Remove signer subscription"
+msgstr "Remove signer subscription"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Send a test message"
+msgstr "Send a test message"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Send ntfy push to enrolled signers"
+msgstr "Send ntfy push to enrolled signers"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Send ntfy push to me / staff"
+msgstr "Send ntfy push to me / staff"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Send staff SMS using this company’s Twilio account"
+msgstr "Send staff SMS using this company’s Twilio account"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Send text messages"
+msgstr "Send text messages"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Sending number"
+msgstr "Sending number"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Sends one real message using the saved settings, so a wrong credential or number shows up here rather than as a document notification that never arrives. Save your changes first."
+msgstr "Sends one real message using the saved settings, so a wrong credential or number shows up here rather than as a document notification that never arrives. Save your changes first."
+
+#: apps/remix/app/components/forms/document-preferences-form.tsx
+msgid "Sends the signing link by text alongside the email, so a message caught by a spam filter is not the only attempt. Recipients without a mobile number are skipped."
+msgstr "Sends the signing link by text alongside the email, so a message caught by a spam filter is not the only attempt. Recipients without a mobile number are skipped."
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Short operational notices with a protected document link. Document titles, signer details and signing links stay out of these alerts."
+msgstr "Short operational notices with a protected document link. Document titles, signer details and signing links stay out of these alerts."
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Shown at the start of every message so the recipient knows who is texting them."
+msgstr "Shown at the start of every message so the recipient knows who is texting them."
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Signer email"
+msgstr "Signer email"
+
+#: apps/remix/app/components/forms/document-preferences-form.tsx
+msgid "Signer push and internal staff notifications"
+msgstr "Signer push and internal staff notifications"
+
+#: apps/remix/app/components/forms/document-preferences-form.tsx
+msgid "Signer SMS and company Twilio connection"
+msgstr "Signer SMS and company Twilio connection"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "SMS uses the company Twilio account and sender above. ntfy is an additional, independent channel."
+msgstr "SMS uses the company Twilio account and sender above. ntfy is an additional, independent channel."
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Text by default"
+msgstr "Text by default"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "The document is fully completed"
+msgstr "The document is fully completed"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Twilio account SID"
+msgstr "Twilio account SID"
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Twilio auth token"
+msgstr "Twilio auth token"
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Use a publisher identity with write access only to this company’s intended topics. Tokens are encrypted and never returned to the browser. Leave blank to keep the saved token."
+msgstr "Use a publisher identity with write access only to this company’s intended topics. Tokens are encrypted and never returned to the browser. Leave blank to keep the saved token."
+
+#: packages/ui/components/document/notification-settings-picker.tsx
+msgid "Use international format with + and country code. Enrol only people who agreed to receive these texts. Carrier charges and opt-outs apply."
+msgstr "Use international format with + and country code. Enrol only people who agreed to receive these texts. Carrier charges and opt-outs apply."
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Use this only for a dedicated document sender or an explicitly configured forwarding path. Preserve any existing SMS inbox and opt-out handler; do not replace a live conversation webhook."
+msgstr "Use this only for a dedicated document sender or an explicitly configured forwarding path. Preserve any existing SMS inbox and opt-out handler; do not replace a live conversation webhook."
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Uses the saved company credentials. Owning a number does not verify its registration or consent eligibility."
+msgstr "Uses the saved company credentials. Owning a number does not verify its registration or consent eligibility."

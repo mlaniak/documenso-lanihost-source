@@ -15,7 +15,7 @@ import {
   Users2Icon,
 } from 'lucide-react';
 import { FaUsers } from 'react-icons/fa6';
-import { Link, NavLink, Outlet } from 'react-router';
+import { Link, NavLink, Outlet, useLocation } from 'react-router';
 
 import { GenericErrorLayout } from '~/components/general/generic-error-layout';
 import { appMetaTags } from '~/utils/meta';
@@ -29,6 +29,7 @@ export default function SettingsLayout() {
 
   const isBillingEnabled = IS_BILLING_ENABLED();
   const organisation = useCurrentOrganisation();
+  const location = useLocation();
 
   const organisationSettingRoutes = [
     {
@@ -45,6 +46,11 @@ export default function SettingsLayout() {
     {
       path: `/o/${organisation.url}/settings/document`,
       label: t`Document`,
+      isSubNav: true,
+    },
+    {
+      path: `/o/${organisation.url}/settings/document#notifications`,
+      label: t`Notifications`,
       isSubNav: true,
     },
     {
@@ -149,12 +155,16 @@ export default function SettingsLayout() {
             <NavLink
               to={route.path}
               className={cn('group w-full justify-start', route.isSubNav && 'pl-8')}
-              key={route.path}
+              key={`${route.path}-${route.label}`}
             >
               <Button
                 variant="ghost"
                 className={cn('w-full justify-start', {
-                  'group-aria-[current]:bg-secondary': !route.hideHighlight,
+                  'bg-secondary':
+                    !route.hideHighlight &&
+                    (route.path.includes('#')
+                      ? location.hash === '#notifications'
+                      : location.pathname === route.path && location.hash !== '#notifications'),
                 })}
               >
                 {route.icon && <route.icon className="mr-2 h-5 w-5" />}

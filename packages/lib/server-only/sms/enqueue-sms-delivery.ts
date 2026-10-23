@@ -1,7 +1,7 @@
 import { prisma } from '@documenso/prisma';
 import type { ScheduledReminderDeliveryKind } from '@prisma/client';
-
 import { normalisePhoneNumber } from '../../constants/sms-delivery';
+import { enqueueDocumentNotification } from '../notifications/document-notifications';
 import { type EnvelopeSmsContext, getEnvelopeSmsContext } from './get-envelope-sms-context';
 import { isPhoneSuppressed } from './sms-opt-out';
 
@@ -26,6 +26,17 @@ export type EnqueueSmsDeliveryOptions = {
  * result as informational rather than branching on it.
  */
 export const enqueueSmsDelivery = async (options: EnqueueSmsDeliveryOptions): Promise<'enqueued' | 'skipped'> => {
+  await enqueueDocumentNotification({
+    envelopeId: options.envelopeId,
+    teamId: options.teamId,
+    recipientId: options.recipientId,
+    audience: 'SIGNER',
+    event: options.kind,
+    scheduledAt: options.scheduledAt,
+    occurrence: options.kind === 'REMINDER' ? options.scheduledAt?.toISOString() : undefined,
+  }).catch(() => {
+    console.error('Could not queue signer push notification');
+  });
   const context =
     options.context ??
     (await getEnvelopeSmsContext({

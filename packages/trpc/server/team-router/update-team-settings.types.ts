@@ -6,6 +6,7 @@ import { ZCssVarsSchema } from '@documenso/lib/types/css-vars';
 import { ZDefaultRecipientsSchema } from '@documenso/lib/types/default-recipients';
 import { ZDocumentEmailSettingsSchema } from '@documenso/lib/types/document-email';
 import { ZDocumentMetaDateFormatSchema, ZDocumentMetaTimezoneSchema } from '@documenso/lib/types/document-meta';
+import { ZDocumentNotificationSettingsFormSchema } from '@documenso/lib/types/document-notification-settings';
 import { DocumentVisibility } from '@documenso/lib/types/document-visibility';
 import { ZSmsSettingsFormSchema } from '@documenso/lib/types/sms-settings-form';
 import { ZSanitizeBrandingCssWarningSchema } from '@documenso/lib/utils/sanitize-branding-css';
@@ -34,6 +35,7 @@ export const ZUpdateTeamSettingsRequestSchema = z.object({
     envelopeExpirationPeriod: ZEnvelopeExpirationPeriod.nullish(),
     reminderSettings: ZEnvelopeReminderSettings.nullish(),
     smsSettings: ZSmsSettingsFormSchema.nullish(),
+    notificationSettings: ZDocumentNotificationSettingsFormSchema.nullish(),
 
     // Branding related settings.
     brandingEnabled: z.boolean().nullish(),

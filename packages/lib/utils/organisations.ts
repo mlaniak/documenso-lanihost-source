@@ -139,6 +139,7 @@ export const generateDefaultOrganisationSettings = (): Omit<OrganisationGlobalSe
     reminderSettings: DEFAULT_ENVELOPE_REMINDER_SETTINGS,
     // Null means SMS is unconfigured, which resolves to disabled.
     smsSettings: null,
+    notificationSettings: null,
 
     aiFeaturesEnabled: false,
   };
