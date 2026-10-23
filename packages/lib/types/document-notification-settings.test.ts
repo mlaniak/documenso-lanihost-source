@@ -5,7 +5,7 @@ import {
   parseDocumentNotificationSettings,
   ZDocumentNotificationSettingsFormSchema,
 } from './document-notification-settings';
-import { redactSmsSettings } from './sms-settings';
+import { omitNotificationConnections, redactSmsSettings } from './sms-settings';
 
 describe('document notification settings', () => {
   it('defaults new notification routes off without changing legacy SMS', () => {
@@ -42,5 +42,25 @@ describe('document notification settings', () => {
     });
     expect(JSON.stringify(result)).not.toContain('ENCRYPTED_SECRET');
     expect(result.notificationSettings).toMatchObject({ ntfy: { hasToken: true } });
+  });
+  it('omits company delivery secrets and contacts for embedded authors while keeping document defaults', () => {
+    const settings = {
+      brandingEnabled: true,
+      documentVisibility: 'EVERYONE',
+      smsSettings: { authToken: 'SMS_CIPHERTEXT', accountSid: 'AC_private' },
+      notificationSettings: {
+        ntfy: { token: 'PUBLISHER_CIPHERTEXT' },
+        signers: { targets: [{ email: 'private@example.com', topic: 'private-signer' }] },
+        staff: { phones: ['+18325550101'], topic: 'private-staff' },
+      },
+    };
+    const result = omitNotificationConnections(settings);
+    expect(result).toEqual({
+      brandingEnabled: true,
+      documentVisibility: 'EVERYONE',
+      smsSettings: null,
+      notificationSettings: null,
+    });
+    expect(settings.notificationSettings.ntfy.token).toBe('PUBLISHER_CIPHERTEXT');
   });
 });

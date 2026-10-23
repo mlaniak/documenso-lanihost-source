@@ -95,3 +95,8 @@ export const redactSmsSettings = <T extends { smsSettings: unknown; notification
       : {}),
   };
 };
+
+/** Embedded authors receive document defaults, never company delivery connections or contact lists. */
+export const omitNotificationConnections = <T extends { smsSettings: unknown; notificationSettings?: unknown }>(
+  settings: T,
+) => ({ ...settings, smsSettings: null, notificationSettings: null });

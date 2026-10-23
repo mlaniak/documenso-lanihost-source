@@ -4,6 +4,11 @@ const getEnvelopeSmsContext = vi.fn();
 const isPhoneSuppressed = vi.fn();
 const findUnique = vi.fn();
 const create = vi.fn();
+const enqueueDocumentNotification = vi.fn();
+
+vi.mock('../notifications/document-notifications', () => ({
+  enqueueDocumentNotification: (...args: unknown[]) => enqueueDocumentNotification(...args),
+}));
 
 vi.mock('./get-envelope-sms-context', () => ({
   getEnvelopeSmsContext: (...args: unknown[]) => getEnvelopeSmsContext(...args),
@@ -39,6 +44,7 @@ const baseOptions = {
 
 describe('enqueueSmsDelivery', () => {
   beforeEach(() => {
+    enqueueDocumentNotification.mockReset().mockResolvedValue(undefined);
     getEnvelopeSmsContext.mockReset().mockResolvedValue({
       enabled: true,
       settings: {
@@ -128,5 +134,13 @@ describe('enqueueSmsDelivery', () => {
     await enqueueSmsDelivery({ ...baseOptions, context });
 
     expect(getEnvelopeSmsContext).not.toHaveBeenCalled();
+  });
+  it('queues an explicit resend push even when signer SMS is disabled', async () => {
+    getEnvelopeSmsContext.mockResolvedValue({ enabled: false, settings: {} });
+    await enqueueSmsDelivery({ ...baseOptions, notificationOccurrence: 'resend:operation-1' });
+    expect(enqueueDocumentNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ audience: 'SIGNER', event: 'SIGNING_REQUEST', occurrence: 'resend:operation-1' }),
+    );
+    expect(create).not.toHaveBeenCalled();
   });
 });

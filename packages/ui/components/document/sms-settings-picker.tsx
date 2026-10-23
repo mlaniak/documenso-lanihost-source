@@ -3,7 +3,7 @@ import { Button } from '@documenso/ui/primitives/button';
 import { Input } from '@documenso/ui/primitives/input';
 import { Label } from '@documenso/ui/primitives/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@documenso/ui/primitives/select';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { useState } from 'react';
 
 type SmsMode = 'enabled' | 'disabled' | 'inherit';
@@ -60,6 +60,7 @@ export const SmsSettingsPicker = ({
   inboundWebhookUrl,
   onSendTest,
 }: SmsSettingsPickerProps) => {
+  const { t } = useLingui();
   const mode = value == null && !inheritLabel ? 'disabled' : getMode(value);
   const [senders, setSenders] = useState<Array<{ phoneNumber: string; friendlyName: string }>>([]);
   const [isLoadingSenders, setIsLoadingSenders] = useState(false);
@@ -144,7 +145,7 @@ export const SmsSettingsPicker = ({
               autoComplete="off"
               value={value?.newAuthToken ?? ''}
               onChange={(event) => update({ newAuthToken: event.target.value })}
-              placeholder={value?.hasAuthToken ? '••••••••  (leave blank to keep)' : ''}
+              placeholder={value?.hasAuthToken ? t`•••••••• (leave blank to keep)` : ''}
               disabled={disabled}
             />
 
@@ -188,7 +189,7 @@ export const SmsSettingsPicker = ({
                         await onLoadSenders({ accountSid: value?.accountSid, newAuthToken: value?.newAuthToken }),
                       );
                     } catch {
-                      setSenderError('Could not load senders. Check the company account and token, then try again.');
+                      setSenderError(t`Could not load senders. Check the company account and token, then try again.`);
                     } finally {
                       setIsLoadingSenders(false);
                     }
@@ -201,8 +202,8 @@ export const SmsSettingsPicker = ({
                     value={value?.senderNumber || undefined}
                     onValueChange={(senderNumber) => update({ senderNumber })}
                   >
-                    <SelectTrigger aria-label="Company Twilio sender">
-                      <SelectValue placeholder="Choose a sender" />
+                    <SelectTrigger aria-label={t`Company Twilio sender`}>
+                      <SelectValue placeholder={t`Choose a sender`} />
                     </SelectTrigger>
                     <SelectContent>
                       {senders.map((sender) => (

@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { DocumentInviteEmailTemplate } from '@documenso/email/templates/document-invite';
 import { resolveExpiresAt } from '@documenso/lib/constants/envelope-expiration';
 import { RECIPIENT_ROLE_TO_EMAIL_TYPE, RECIPIENT_ROLES_DESCRIPTION } from '@documenso/lib/constants/recipient-roles';
@@ -194,6 +196,7 @@ export const resendDocument = async ({
   // A manual resend restarts the reminder cycle from scratch, mirroring the
   // initial send, so a recipient that hit the threshold can be reminded again.
   const resentAt = new Date();
+  const notificationOccurrence = `resend:${randomUUID()}`;
 
   await Promise.all(
     recipientsToRemind.map((recipient) =>
@@ -277,6 +280,7 @@ export const resendDocument = async ({
           teamId,
           documentSmsEnabled: envelope.documentMeta?.smsEnabled ?? null,
           kind: 'SIGNING_REQUEST',
+          notificationOccurrence,
           createdById: userId,
         }).catch((error) => {
           console.error('Could not queue a resend SMS', error);

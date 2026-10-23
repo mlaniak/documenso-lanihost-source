@@ -137,6 +137,23 @@ describe('isolated delivery routes', () => {
     expect(stored).not.toContain('publisher');
     expect(stored).not.toContain('private-signer');
   });
+  it('gives separate resends distinct push deliveries but deduplicates retries of each occurrence', async () => {
+    const options = {
+      envelopeId: 'envelope_1',
+      teamId: 1,
+      audience: 'SIGNER' as const,
+      event: 'SIGNING_REQUEST',
+      recipientId: 2,
+    };
+    await enqueueDocumentNotification(options);
+    await enqueueDocumentNotification({ ...options, occurrence: 'resend:first' });
+    await enqueueDocumentNotification({ ...options, occurrence: 'resend:first' });
+    await enqueueDocumentNotification({ ...options, occurrence: 'resend:second' });
+    const ids = mocks.upsert.mock.calls.map(([arg]) => arg.where.id);
+    expect(ids[0]).not.toBe(ids[1]);
+    expect(ids[1]).toBe(ids[2]);
+    expect(ids[1]).not.toBe(ids[3]);
+  });
   it('cancels a queued route if the company changes its topic', async () => {
     mocks.findMany.mockResolvedValue([
       {

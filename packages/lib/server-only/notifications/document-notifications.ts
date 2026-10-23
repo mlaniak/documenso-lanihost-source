@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { prisma } from '@documenso/prisma';
 
 import { NEXT_PUBLIC_WEBAPP_URL } from '../../constants/app';
+import { AppError, AppErrorCode } from '../../errors/app-error';
 import {
   type DocumentNotificationSettings,
   parseDocumentNotificationSettings,
@@ -289,7 +290,7 @@ export const processDocumentNotificationDeliveries = async () => {
       } else if (route.channel === 'SMS') {
         const credentials = resolveSmsCredentials(sms);
         if (!credentials) {
-          throw new Error('Company Twilio credentials are unavailable');
+          throw new AppError(AppErrorCode.NOT_SETUP, { message: 'Company Twilio credentials are unavailable' });
         }
         const result = await sendSms({
           to: route.destination,

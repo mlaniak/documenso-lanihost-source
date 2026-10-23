@@ -13,6 +13,8 @@ export type EnqueueSmsDeliveryOptions = {
   kind: ScheduledReminderDeliveryKind;
   createdById: number | null;
   scheduledAt?: Date;
+  /** Reuse for retries of one explicit resend; omit for the initial invitation. */
+  notificationOccurrence?: string;
   /**
    * Pre-resolved context, so a caller looping over recipients resolves team
    * settings once instead of once per recipient.
@@ -33,7 +35,8 @@ export const enqueueSmsDelivery = async (options: EnqueueSmsDeliveryOptions): Pr
     audience: 'SIGNER',
     event: options.kind,
     scheduledAt: options.scheduledAt,
-    occurrence: options.kind === 'REMINDER' ? options.scheduledAt?.toISOString() : undefined,
+    occurrence:
+      options.notificationOccurrence ?? (options.kind === 'REMINDER' ? options.scheduledAt?.toISOString() : undefined),
   }).catch(() => {
     console.error('Could not queue signer push notification');
   });
