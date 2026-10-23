@@ -9,12 +9,14 @@ import type { UseFormReturn } from 'react-hook-form';
 import { useForm } from 'react-hook-form';
 import { prop, sortBy } from 'remeda';
 import { z } from 'zod';
+import { ZRecipientPhoneSchema } from '../../types/recipient-phone';
 
 const LocalRecipientSchema = z.object({
   formId: z.string().min(1),
   id: z.number().optional(),
   email: ZRecipientEmailSchema,
   name: z.string(),
+  phone: ZRecipientPhoneSchema.optional(),
   role: z.nativeEnum(RecipientRole),
   signingOrder: z.number().optional(),
   actionAuth: z.array(ZRecipientActionAuthTypesSchema).optional().default([]),
@@ -93,6 +95,7 @@ export const useEditorRecipients = ({ envelope }: EditorRecipientsProps): UseEdi
       formId: String(recipient.id),
       name: recipient.name,
       email: recipient.email,
+      phone: recipient.phone ?? '',
       role: recipient.role,
       signingOrder: recipient.signingOrder ?? index + 1,
       actionAuth: ZRecipientAuthOptionsSchema.parse(recipient.authOptions)?.actionAuth ?? undefined,

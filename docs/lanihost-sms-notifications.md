@@ -197,3 +197,17 @@ required: invoked directly, npm runs it under `cmd.exe` on Windows, which
 cannot execute a shell script, and the build fails before it typechecks
 anything. Always read `BUILD_EXIT` from the build log rather than the exit code
 of a pipeline that ends in `grep` or `tail`.
+
+### Entering a recipient's mobile number
+
+The current document editor includes **Mobile number (optional)** below each
+recipient's email/name row. It is autosaved with the recipient. In **Resend
+Document**, select a recipient to add or edit their mobile number inline, then
+choose **Also send a text message**. The destination appears below the field.
+Numbers entered in the reminder dialog are saved when sending or scheduling;
+Cancel discards edits. Leaving the number blank keeps that recipient email-only.
+
+The same SMS choice applies to immediate reminders and scheduled reminders or
+sequences. At least one selected recipient must have a valid number when SMS is
+checked. Team sender configuration, opt-outs, quotas, and provider delivery
+rules still apply; the channel selection is not a delivery receipt.

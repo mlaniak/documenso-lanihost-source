@@ -104,7 +104,7 @@ export const setDocumentRecipients = async ({
     email: recipient.email.toLowerCase(),
     // An unusable number is stored as null rather than rejected: a bad phone
     // must never block a send, it just means no text for that recipient.
-    phone: recipient.phone ? normalisePhoneNumber(recipient.phone) : null,
+    phone: recipient.phone === undefined ? undefined : recipient.phone ? normalisePhoneNumber(recipient.phone) : null,
   }));
 
   const existingRecipients = envelope.recipients;
@@ -351,7 +351,7 @@ const hasRecipientBeenChanged = (recipient: Recipient, newRecipientData: Recipie
     recipient.name !== newRecipientData.name ||
     // Without this, editing only the phone number reads as "unchanged" and the
     // edit is silently discarded.
-    recipient.phone !== (newRecipientData.phone ?? null) ||
+    (newRecipientData.phone !== undefined && recipient.phone !== newRecipientData.phone) ||
     recipient.role !== newRecipientData.role ||
     recipient.signingOrder !== newRecipientData.signingOrder ||
     !isDeepEqual(authOptions.accessAuth, newRecipientAccessAuth) ||
