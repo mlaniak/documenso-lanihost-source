@@ -4,7 +4,8 @@ vi.mock('../../constants/crypto', () => ({
   DOCUMENSO_ENCRYPTION_SECONDARY_KEY: 'test-encryption-key',
 }));
 
-const { decryptSmsAuthToken, encryptSmsAuthToken, resolveSmsCredentials } = await import('./sms-credentials');
+const { decryptSmsAuthToken, encryptSmsAuthToken, resolveSmsCredentials, resolveSenderLookupCredentials } =
+  await import('./sms-credentials');
 
 describe('sms auth token encryption', () => {
   it('round trips a token', () => {
@@ -56,5 +57,30 @@ describe('resolveSmsCredentials', () => {
 
   it('returns null when the stored token cannot be decrypted', () => {
     expect(resolveSmsCredentials({ accountSid: 'AC_team', authToken: 'not-valid-ciphertext' })).toBeNull();
+  });
+});
+
+describe('sender lookup credentials', () => {
+  it('uses entered credentials before the first save', () => {
+    expect(resolveSenderLookupCredentials({}, { accountSid: 'AC_new', newAuthToken: 'entered' })).toEqual({
+      accountSid: 'AC_new',
+      authToken: 'entered',
+    });
+  });
+  it('never pairs a newly selected account with another account’s saved token', () => {
+    expect(
+      resolveSenderLookupCredentials(
+        { accountSid: 'AC_old', authToken: encryptSmsAuthToken('old') },
+        { accountSid: 'AC_new' },
+      ),
+    ).toBeNull();
+  });
+  it('uses a saved token only for the same company account', () => {
+    expect(
+      resolveSenderLookupCredentials(
+        { accountSid: 'AC_same', authToken: encryptSmsAuthToken('kept') },
+        { accountSid: 'AC_same' },
+      ),
+    ).toEqual({ accountSid: 'AC_same', authToken: 'kept' });
   });
 });

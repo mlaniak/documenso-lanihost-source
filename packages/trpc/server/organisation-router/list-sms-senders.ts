@@ -1,7 +1,7 @@
 import { ORGANISATION_MEMBER_ROLE_PERMISSIONS_MAP } from '@documenso/lib/constants/organisations';
 import { TEAM_MEMBER_ROLE_PERMISSIONS_MAP } from '@documenso/lib/constants/teams';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
-import { resolveSmsCredentials } from '@documenso/lib/server-only/sms/sms-credentials';
+import { resolveSenderLookupCredentials } from '@documenso/lib/server-only/sms/sms-credentials';
 import { getTeamSettings } from '@documenso/lib/server-only/team/get-team-settings';
 import { parseSmsSettings } from '@documenso/lib/types/sms-settings';
 import { buildOrganisationWhereQuery } from '@documenso/lib/utils/organisations';
@@ -14,7 +14,7 @@ import { ZListSmsSendersRequestSchema, ZListSmsSendersResponseSchema } from './l
 export const listSmsSendersRoute = authenticatedProcedure
   .input(ZListSmsSendersRequestSchema)
   .output(ZListSmsSendersResponseSchema)
-  .query(async ({ ctx, input }) => {
+  .mutation(async ({ ctx, input }) => {
     let stored: unknown;
     if (input.teamId !== undefined) {
       const team = await prisma.team.findFirst({
@@ -47,10 +47,10 @@ export const listSmsSendersRoute = authenticatedProcedure
       stored = organisation.organisationGlobalSettings.smsSettings;
     }
     const settings = parseSmsSettings(stored);
-    const credentials = settings.accountSid && settings.authToken ? resolveSmsCredentials(settings) : null;
+    const credentials = resolveSenderLookupCredentials(settings, input);
     if (!credentials || !/^AC[a-f0-9]{32}$/i.test(credentials.accountSid)) {
       throw new AppError(AppErrorCode.INVALID_REQUEST, {
-        message: 'Save this company’s Twilio account and token first',
+        message: 'Enter this company’s Twilio account and token to load its sender numbers',
       });
     }
     const response = await fetch(
@@ -65,7 +65,7 @@ export const listSmsSendersRoute = authenticatedProcedure
     );
     if (!response.ok) {
       throw new AppError(AppErrorCode.INVALID_REQUEST, {
-        message: 'Twilio could not verify this account. Check the saved credentials.',
+        message: 'Twilio could not verify this account. Check the company credentials.',
       });
     }
     const data = await response.json();

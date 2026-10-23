@@ -34,7 +34,7 @@ export default function TeamsSettingsPage() {
 
   const { t } = useLingui();
   const { toast } = useToast();
-  const trpcUtils = trpc.useUtils();
+  const { mutateAsync: loadSmsSenders } = trpc.organisation.settings.listSmsSenders.useMutation();
 
   const { data: teamWithSettings, isLoading: isLoadingTeam } = trpc.team.get.useQuery({
     teamReference: team.id,
@@ -129,11 +129,8 @@ export default function TeamsSettingsPage() {
           isAiFeaturesConfigured={isAiFeaturesConfigured}
           settings={teamWithSettings.teamSettings}
           inboundWebhookUrl={buildTwilioInboundWebhookUrl(team.id)}
-          onLoadSmsSenders={() =>
-            trpcUtils.organisation.settings.listSmsSenders.fetch({
-              organisationId: team.organisationId,
-              teamId: team.id,
-            })
+          onLoadSmsSenders={(draft) =>
+            loadSmsSenders({ ...draft, organisationId: team.organisationId, teamId: team.id })
           }
           onFormSubmit={onDocumentPreferencesSubmit}
         />

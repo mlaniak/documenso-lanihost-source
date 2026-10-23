@@ -36,7 +36,7 @@ export default function OrganisationSettingsDocumentPage() {
 
   const { t } = useLingui();
   const { toast } = useToast();
-  const trpcUtils = trpc.useUtils();
+  const { mutateAsync: loadSmsSenders } = trpc.organisation.settings.listSmsSenders.useMutation();
 
   const isPersonalLayoutMode = isPersonalLayout(organisations);
 
@@ -161,9 +161,7 @@ export default function OrganisationSettingsDocumentPage() {
           isAiFeaturesConfigured={isAiFeaturesConfigured}
           settings={organisationWithSettings.organisationGlobalSettings}
           onSendTestSms={onSendTestSms}
-          onLoadSmsSenders={() =>
-            trpcUtils.organisation.settings.listSmsSenders.fetch({ organisationId: organisation.id })
-          }
+          onLoadSmsSenders={(draft) => loadSmsSenders({ ...draft, organisationId: organisation.id })}
           onFormSubmit={onDocumentPreferencesFormSubmit}
         />
       </section>

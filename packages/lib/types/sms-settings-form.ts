@@ -12,10 +12,10 @@ import { SMS_E164_PATTERN } from '../constants/sms-delivery';
  */
 export const ZSmsSettingsFormSchema = z.object({
   enabled: z.boolean(),
-  senderNumber: z.string().regex(SMS_E164_PATTERN, 'Sender number must be in E.164 format'),
+  senderNumber: z.string().trim().regex(SMS_E164_PATTERN, 'Sender number must be in E.164 format'),
   defaultOn: z.boolean(),
   brandLabel: z.string().min(1).max(24),
-  accountSid: z.string().min(1),
+  accountSid: z.string().trim().min(1),
   /**
    * Tri-state on purpose. true/false is what the server reported; undefined
    * means we could not tell, and an unknown must never be treated as "no
@@ -23,7 +23,7 @@ export const ZSmsSettingsFormSchema = z.object({
    */
   hasAuthToken: z.boolean().optional(),
   /** Blank leaves the stored token unchanged. */
-  newAuthToken: z.string().optional(),
+  newAuthToken: z.string().trim().optional(),
 });
 
 export type TSmsSettingsForm = z.infer<typeof ZSmsSettingsFormSchema>;

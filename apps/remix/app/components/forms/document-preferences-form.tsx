@@ -110,7 +110,10 @@ export type DocumentPreferencesFormProps = {
   inboundWebhookUrl?: string;
   /** Sends a real test message using the saved SMS settings. */
   onSendTestSms?: (phone: string) => Promise<void>;
-  onLoadSmsSenders?: () => Promise<Array<{ phoneNumber: string; friendlyName: string }>>;
+  onLoadSmsSenders?: (draft: {
+    accountSid?: string;
+    newAuthToken?: string;
+  }) => Promise<Array<{ phoneNumber: string; friendlyName: string }>>;
   onFormSubmit: (data: TDocumentPreferencesFormSchema) => Promise<void>;
 };
 

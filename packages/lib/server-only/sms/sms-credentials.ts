@@ -139,3 +139,18 @@ export const mergeSmsSettingsForStorage = (options: {
     ...(authToken ? { authToken } : {}),
   };
 };
+
+/** A read-only sender lookup may use entered credentials before a first save. */
+export const resolveSenderLookupCredentials = (
+  stored: { accountSid?: string; authToken?: string },
+  draft: { accountSid?: string; newAuthToken?: string },
+): SmsCredentials | null => {
+  const accountSid = draft.accountSid?.trim() || stored.accountSid;
+  if (accountSid && draft.newAuthToken?.trim()) {
+    return { accountSid, authToken: draft.newAuthToken.trim() };
+  }
+  if (!accountSid || accountSid !== stored.accountSid || !stored.authToken) {
+    return null;
+  }
+  return resolveSmsCredentials(stored);
+};

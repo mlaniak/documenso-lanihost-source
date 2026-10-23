@@ -14933,3 +14933,7 @@ msgstr "Use this only for a dedicated document sender or an explicitly configure
 #: packages/ui/components/document/sms-settings-picker.tsx
 msgid "Uses the saved company credentials. Owning a number does not verify its registration or consent eligibility."
 msgstr "Uses the saved company credentials. Owning a number does not verify its registration or consent eligibility."
+
+#: packages/ui/components/document/sms-settings-picker.tsx
+msgid "Uses the entered company credentials, or the same saved account if the token is blank. Number ownership does not verify registration or consent eligibility."
+msgstr "Uses the entered company credentials, or the same saved account if the token is blank. Number ownership does not verify registration or consent eligibility."

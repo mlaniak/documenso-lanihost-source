@@ -10,7 +10,8 @@ preserved. Newly introduced routes default off.
 
 The company Twilio connection remains in `smsSettings`. Save that company's
 account SID, auth token and sender number; **Load this account’s sender numbers**
-reads the numbers from those saved credentials. It requires organisation or
+reads the numbers from the entered credentials, or from the same saved account
+when the token is blank. You can choose a sender before the first save. It requires organisation or
 team management permission, never lists another company's account, and does
 not change Twilio. Number ownership is not campaign approval. A changed account
 SID requires the corresponding new token. Preserve existing inbound SMS inboxes:

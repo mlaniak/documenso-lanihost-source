@@ -36,7 +36,10 @@ export type SmsSettingsPickerProps = {
   onChange: (value: TSmsSettingsForm | null) => void;
   disabled?: boolean;
   forceConnection?: boolean;
-  onLoadSenders?: () => Promise<Array<{ phoneNumber: string; friendlyName: string }>>;
+  onLoadSenders?: (draft: {
+    accountSid?: string;
+    newAuthToken?: string;
+  }) => Promise<Array<{ phoneNumber: string; friendlyName: string }>>;
   inheritLabel?: string;
   /** Shown so the operator can paste it into this account's Twilio console. */
   inboundWebhookUrl?: string;
@@ -181,9 +184,11 @@ export const SmsSettingsPicker = ({
                     setIsLoadingSenders(true);
                     setSenderError('');
                     try {
-                      setSenders(await onLoadSenders());
+                      setSenders(
+                        await onLoadSenders({ accountSid: value?.accountSid, newAuthToken: value?.newAuthToken }),
+                      );
                     } catch {
-                      setSenderError('Could not load senders. Save the company account and token, then try again.');
+                      setSenderError('Could not load senders. Check the company account and token, then try again.');
                     } finally {
                       setIsLoadingSenders(false);
                     }
