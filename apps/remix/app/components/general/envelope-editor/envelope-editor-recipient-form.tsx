@@ -1009,35 +1009,37 @@ export const EnvelopeEditorRecipientForm = () => {
                                 </Button>
                               </div>
 
-                              <FormField
-                                control={form.control}
-                                name={`signers.${index}.phone`}
-                                render={({ field }) => (
-                                  <FormItem className="mt-3 max-w-sm">
-                                    <FormLabel>
-                                      <Trans>Mobile number (optional)</Trans>
-                                    </FormLabel>
-                                    <FormControl>
-                                      <Input
-                                        {...field}
-                                        value={field.value ?? ''}
-                                        type="tel"
-                                        autoComplete="tel"
-                                        placeholder={t`e.g. (832) 555-0123`}
-                                        maxLength={30}
-                                        data-testid="signer-phone-input"
-                                      />
-                                    </FormControl>
-                                    <p className="text-muted-foreground text-xs">
-                                      <Trans>
-                                        Used when text messages are enabled. Include a country code outside the US or
-                                        Canada.
-                                      </Trans>
-                                    </p>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
+                              {envelope.type === EnvelopeType.DOCUMENT && (
+                                <FormField
+                                  control={form.control}
+                                  name={`signers.${index}.phone`}
+                                  render={({ field }) => (
+                                    <FormItem className="mt-3 max-w-sm">
+                                      <FormLabel>
+                                        <Trans>Mobile number (optional)</Trans>
+                                      </FormLabel>
+                                      <FormControl>
+                                        <Input
+                                          {...field}
+                                          value={field.value ?? ''}
+                                          type="tel"
+                                          autoComplete="tel"
+                                          placeholder={t`e.g. (832) 555-0123`}
+                                          maxLength={30}
+                                          data-testid="signer-phone-input"
+                                        />
+                                      </FormControl>
+                                      <p className="text-muted-foreground text-xs">
+                                        <Trans>
+                                          Used when text messages are enabled. Include a country code outside the US or
+                                          Canada.
+                                        </Trans>
+                                      </p>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              )}
 
                               {showAdvancedSettings && organisation.organisationClaim.flags.cfr21 && (
                                 <FormField
