@@ -35,6 +35,11 @@ export type SmsSettingsPickerProps = {
   value: TSmsSettingsForm | null | undefined;
   onChange: (value: TSmsSettingsForm | null) => void;
   disabled?: boolean;
+  forceConnection?: boolean;
+  onLoadSenders?: (draft: {
+    accountSid?: string;
+    newAuthToken?: string;
+  }) => Promise<Array<{ phoneNumber: string; friendlyName: string }>>;
   inheritLabel?: string;
   /** Shown so the operator can paste it into this account's Twilio console. */
   inboundWebhookUrl?: string;
@@ -49,11 +54,16 @@ export const SmsSettingsPicker = ({
   value,
   onChange,
   disabled,
+  forceConnection,
+  onLoadSenders,
   inheritLabel,
   inboundWebhookUrl,
   onSendTest,
 }: SmsSettingsPickerProps) => {
-  const mode = getMode(value);
+  const mode = value == null && !inheritLabel ? 'disabled' : getMode(value);
+  const [senders, setSenders] = useState<Array<{ phoneNumber: string; friendlyName: string }>>([]);
+  const [isLoadingSenders, setIsLoadingSenders] = useState(false);
+  const [senderError, setSenderError] = useState('');
   const [testPhone, setTestPhone] = useState('');
   const [isSendingTest, setIsSendingTest] = useState(false);
 
@@ -72,7 +82,7 @@ export const SmsSettingsPicker = ({
   };
 
   const update = (patch: Partial<TSmsSettingsForm>) => {
-    onChange({ ...EMPTY_SETTINGS, ...value, ...patch });
+    onChange({ ...EMPTY_SETTINGS, enabled: mode === 'enabled', defaultOn: mode === 'enabled', ...value, ...patch });
   };
 
   const onModeChange = (nextMode: SmsMode) => {
@@ -102,7 +112,7 @@ export const SmsSettingsPicker = ({
         </SelectContent>
       </Select>
 
-      {mode === 'enabled' && (
+      {(mode === 'enabled' || forceConnection) && (
         <div className="space-y-4 rounded-md border border-border p-4">
           <div className="space-y-2">
             <Label>
@@ -162,6 +172,60 @@ export const SmsSettingsPicker = ({
               placeholder="+18325551234"
               disabled={disabled}
             />
+
+            {onLoadSenders && (
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={disabled || isLoadingSenders}
+                  onClick={async () => {
+                    setIsLoadingSenders(true);
+                    setSenderError('');
+                    try {
+                      setSenders(
+                        await onLoadSenders({ accountSid: value?.accountSid, newAuthToken: value?.newAuthToken }),
+                      );
+                    } catch {
+                      setSenderError('Could not load senders. Check the company account and token, then try again.');
+                    } finally {
+                      setIsLoadingSenders(false);
+                    }
+                  }}
+                >
+                  <Trans>Load this account’s sender numbers</Trans>
+                </Button>
+                {senders.length > 0 && (
+                  <Select
+                    value={value?.senderNumber || undefined}
+                    onValueChange={(senderNumber) => update({ senderNumber })}
+                  >
+                    <SelectTrigger aria-label="Company Twilio sender">
+                      <SelectValue placeholder="Choose a sender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {senders.map((sender) => (
+                        <SelectItem key={sender.phoneNumber} value={sender.phoneNumber}>
+                          {sender.phoneNumber} — {sender.friendlyName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {senderError && (
+                  <p role="alert" className="text-destructive text-xs">
+                    {senderError}
+                  </p>
+                )}
+                <p className="text-muted-foreground text-xs">
+                  <Trans>
+                    Uses the saved company credentials. Owning a number does not verify its registration or consent
+                    eligibility.
+                  </Trans>
+                </p>
+              </div>
+            )}
 
             <p className="text-muted-foreground text-xs">
               <Trans>
@@ -259,8 +323,8 @@ export const SmsSettingsPicker = ({
 
               <p className="text-muted-foreground text-xs">
                 <Trans>
-                  Paste this into the Twilio console for this number, under "A message comes in". Opt-out replies are
-                  not recorded until you do.
+                  Use this only for a dedicated document sender or an explicitly configured forwarding path. Preserve
+                  any existing SMS inbox and opt-out handler; do not replace a live conversation webhook.
                 </Trans>
               </p>
             </div>

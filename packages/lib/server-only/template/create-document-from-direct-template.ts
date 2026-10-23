@@ -794,6 +794,7 @@ export const createDocumentFromDirectTemplate = async ({
 
     await triggerWebhook({
       event: WebhookTriggerEvents.DOCUMENT_SIGNED,
+      recipientId,
       data: ZWebhookDocumentSchema.parse(mapEnvelopeToWebhookDocumentPayload(refetchedEnvelope)),
       userId: refetchedEnvelope.userId,
       teamId: refetchedEnvelope.teamId ?? undefined,

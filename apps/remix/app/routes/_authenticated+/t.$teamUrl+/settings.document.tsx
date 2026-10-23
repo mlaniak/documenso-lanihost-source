@@ -1,5 +1,6 @@
 import { IS_AI_FEATURES_CONFIGURED } from '@documenso/lib/constants/app';
 import { DocumentSignatureType } from '@documenso/lib/constants/document';
+import { AppError } from '@documenso/lib/errors/app-error';
 import { buildTwilioInboundWebhookUrl } from '@documenso/lib/server-only/sms/twilio-webhook-urls';
 import { trpc } from '@documenso/trpc/react';
 import { useToast } from '@documenso/ui/primitives/use-toast';
@@ -33,6 +34,7 @@ export default function TeamsSettingsPage() {
 
   const { t } = useLingui();
   const { toast } = useToast();
+  const { mutateAsync: loadSmsSenders } = trpc.organisation.settings.listSmsSenders.useMutation();
 
   const { data: teamWithSettings, isLoading: isLoadingTeam } = trpc.team.get.useQuery({
     teamReference: team.id,
@@ -57,6 +59,7 @@ export default function TeamsSettingsPage() {
         envelopeExpirationPeriod,
         reminderSettings,
         smsSettings,
+        notificationSettings,
       } = data;
 
       await updateTeamSettings({
@@ -74,6 +77,7 @@ export default function TeamsSettingsPage() {
           envelopeExpirationPeriod,
           reminderSettings,
           smsSettings,
+          notificationSettings,
           ...(signatureTypes.length === 0
             ? {
                 typedSignatureEnabled: null,
@@ -96,7 +100,7 @@ export default function TeamsSettingsPage() {
     } catch (err) {
       toast({
         title: t`Something went wrong!`,
-        description: t`We were unable to update your document preferences at this time, please try again later`,
+        description: AppError.parseError(err).message,
         variant: 'destructive',
       });
 
@@ -125,6 +129,9 @@ export default function TeamsSettingsPage() {
           isAiFeaturesConfigured={isAiFeaturesConfigured}
           settings={teamWithSettings.teamSettings}
           inboundWebhookUrl={buildTwilioInboundWebhookUrl(team.id)}
+          onLoadSmsSenders={(draft) =>
+            loadSmsSenders({ ...draft, organisationId: team.organisationId, teamId: team.id })
+          }
           onFormSubmit={onDocumentPreferencesSubmit}
         />
       </section>

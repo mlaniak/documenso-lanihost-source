@@ -1,6 +1,10 @@
 import { ORGANISATION_MEMBER_ROLE_PERMISSIONS_MAP } from '@documenso/lib/constants/organisations';
 import { TEAM_MEMBER_ROLE_PERMISSIONS_MAP } from '@documenso/lib/constants/teams';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
+import {
+  assertStaffSmsConnection,
+  mergeDocumentNotificationSettings,
+} from '@documenso/lib/server-only/notifications/settings';
 import { mergeSmsSettingsForStorage } from '@documenso/lib/server-only/sms/sms-credentials';
 import { normalizeBrandingColors } from '@documenso/lib/utils/normalize-branding-colors';
 import { buildOrganisationWhereQuery } from '@documenso/lib/utils/organisations';
@@ -41,6 +45,7 @@ export const updateTeamSettingsRoute = authenticatedProcedure
       envelopeExpirationPeriod,
       reminderSettings,
       smsSettings,
+      notificationSettings,
 
       // Branding related settings.
       brandingEnabled,
@@ -80,7 +85,7 @@ export const updateTeamSettingsRoute = authenticatedProcedure
         userId: user.id,
         roles: TEAM_MEMBER_ROLE_PERMISSIONS_MAP['MANAGE_TEAM'],
       }),
-      include: { teamGlobalSettings: true },
+      include: { teamGlobalSettings: true, organisation: { include: { organisationGlobalSettings: true } } },
     });
 
     if (!team) {
@@ -100,6 +105,28 @@ export const updateTeamSettingsRoute = authenticatedProcedure
               submitted: smsSettings,
               stored: team.teamGlobalSettings.smsSettings,
             });
+
+    const resolvedNotificationSettings =
+      notificationSettings === undefined
+        ? undefined
+        : notificationSettings === null
+          ? Prisma.DbNull
+          : mergeDocumentNotificationSettings(notificationSettings, team.teamGlobalSettings.notificationSettings);
+    if (notificationSettings !== undefined || smsSettings !== undefined) {
+      assertStaffSmsConnection(
+        notificationSettings === undefined
+          ? (team.teamGlobalSettings.notificationSettings ??
+              team.organisation.organisationGlobalSettings.notificationSettings)
+          : notificationSettings === null
+            ? team.organisation.organisationGlobalSettings.notificationSettings
+            : resolvedNotificationSettings,
+        smsSettings === undefined
+          ? (team.teamGlobalSettings.smsSettings ?? team.organisation.organisationGlobalSettings.smsSettings)
+          : smsSettings === null
+            ? team.organisation.organisationGlobalSettings.smsSettings
+            : resolvedSmsSettings,
+      );
+    }
 
     // Validate that the email ID belongs to the organisation.
     if (emailId) {
@@ -188,6 +215,7 @@ export const updateTeamSettingsRoute = authenticatedProcedure
             envelopeExpirationPeriod: envelopeExpirationPeriod === null ? Prisma.DbNull : envelopeExpirationPeriod,
             reminderSettings: reminderSettings === null ? Prisma.DbNull : reminderSettings,
             smsSettings: resolvedSmsSettings,
+            notificationSettings: resolvedNotificationSettings,
 
             // Branding related settings.
             brandingEnabled,

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { SMS_E164_PATTERN } from '../constants/sms-delivery';
+import { redactDocumentNotificationSettings } from './document-notification-settings';
 
 /**
  * Secret keys, kept in sync with the omission in ZPublicSmsSettingsSchema.
@@ -75,15 +76,22 @@ export const parseSmsSettings = (value: unknown): TSmsSettings => {
  * *GlobalSettings row, mirroring how the email transport config omits its
  * secrets.
  */
-export const redactSmsSettings = <T extends { smsSettings: unknown } | null>(settings: T): T => {
-  if (!settings || typeof settings.smsSettings !== 'object' || settings.smsSettings === null) {
+export const redactSmsSettings = <T extends { smsSettings: unknown; notificationSettings?: unknown } | null>(
+  settings: T,
+): T => {
+  if (!settings) {
     return settings;
   }
-
-  const { authToken, ...rest } = settings.smsSettings as Record<string, unknown>;
-
+  const sms =
+    settings.smsSettings && typeof settings.smsSettings === 'object'
+      ? (settings.smsSettings as Record<string, unknown>)
+      : null;
+  const { authToken, ...rest } = sms ?? {};
   return {
     ...settings,
-    smsSettings: { ...rest, hasAuthToken: Boolean(authToken) },
+    ...(sms ? { smsSettings: { ...rest, hasAuthToken: Boolean(authToken) } } : {}),
+    ...(settings.notificationSettings !== undefined
+      ? { notificationSettings: redactDocumentNotificationSettings(settings.notificationSettings) }
+      : {}),
   };
 };

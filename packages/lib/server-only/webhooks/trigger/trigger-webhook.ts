@@ -1,6 +1,6 @@
 import type { WebhookTriggerEvents } from '@prisma/client';
-
 import { jobs } from '../../../jobs/client';
+import { enqueueStaffDocumentNotification } from '../../notifications/document-notifications';
 import { getAllWebhooksByEventTrigger } from '../get-all-webhooks-by-event-trigger';
 
 export type TriggerWebhookOptions = {
@@ -8,9 +8,13 @@ export type TriggerWebhookOptions = {
   data: Record<string, unknown>;
   userId: number;
   teamId: number;
+  recipientId?: number;
 };
 
-export const triggerWebhook = async ({ event, data, userId, teamId }: TriggerWebhookOptions) => {
+export const triggerWebhook = async ({ event, data, userId, teamId, recipientId }: TriggerWebhookOptions) => {
+  await enqueueStaffDocumentNotification({ event, data, teamId, recipientId }).catch(() => {
+    console.error('Could not queue internal document notification');
+  });
   try {
     const registeredWebhooks = await getAllWebhooksByEventTrigger({ event, userId, teamId });
 

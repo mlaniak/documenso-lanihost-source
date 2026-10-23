@@ -78,13 +78,13 @@ export const getOrganisationSession = async ({
       // Session data reaches every authenticated page, so the SMS auth token is
       // stripped here. It is encrypted at rest, but ciphertext in a browser is
       // still exposure a member could collect and attack offline.
-      organisationGlobalSettings: redactSmsSettings(organisationGlobalSettings),
+      organisationGlobalSettings: redactSmsSettings({ ...organisationGlobalSettings, notificationSettings: null }),
       teams: organisation.teams.map((team) => {
         const derivedSettings = extractDerivedTeamSettings(organisationGlobalSettings, team.teamGlobalSettings);
 
         return {
           ...team,
-          teamGlobalSettings: redactSmsSettings(team.teamGlobalSettings),
+          teamGlobalSettings: redactSmsSettings({ ...team.teamGlobalSettings, notificationSettings: null }),
           currentTeamRole: getHighestTeamRoleInGroup(team.teamGroups),
           preferences: {
             aiFeaturesEnabled: derivedSettings.aiFeaturesEnabled,

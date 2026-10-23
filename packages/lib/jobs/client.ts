@@ -21,6 +21,7 @@ import { BACKPORT_SUBSCRIPTION_CLAIM_JOB_DEFINITION } from './definitions/intern
 import { BULK_SEND_TEMPLATE_JOB_DEFINITION } from './definitions/internal/bulk-send-template';
 import { CANCEL_ORGANISATION_SUBSCRIPTION_JOB_DEFINITION } from './definitions/internal/cancel-organisation-subscription';
 import { CLEANUP_RATE_LIMITS_JOB_DEFINITION } from './definitions/internal/cleanup-rate-limits';
+import { DOCUMENT_NOTIFICATIONS_SWEEP_JOB_DEFINITION } from './definitions/internal/document-notifications-sweep';
 import { EXECUTE_WEBHOOK_JOB_DEFINITION } from './definitions/internal/execute-webhook';
 import { EXPIRE_RECIPIENTS_SWEEP_JOB_DEFINITION } from './definitions/internal/expire-recipients-sweep';
 import { PROCESS_RECIPIENT_EXPIRED_JOB_DEFINITION } from './definitions/internal/process-recipient-expired';
@@ -35,6 +36,7 @@ import { SYNC_EMAIL_DOMAINS_JOB_DEFINITION } from './definitions/internal/sync-e
  * triggering jobs.
  */
 export const jobsClient = new JobClient([
+  DOCUMENT_NOTIFICATIONS_SWEEP_JOB_DEFINITION,
   SEND_ADMIN_USER_CREATED_EMAIL_JOB_DEFINITION,
   SEND_SIGNING_EMAIL_JOB_DEFINITION,
   SEND_CONFIRMATION_EMAIL_JOB_DEFINITION,

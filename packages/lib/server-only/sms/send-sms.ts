@@ -73,6 +73,8 @@ export const sendSms = async (options: SendSmsOptions): Promise<SendSmsResult> =
 
   const response = await fetch(`${TWILIO_API_BASE}/Accounts/${accountSid}/Messages.json`, {
     method: 'POST',
+    redirect: 'error',
+    signal: AbortSignal.timeout(8000),
     headers: {
       Authorization: `Basic ${btoa(`${accountSid}:${authToken}`)}`,
       'Content-Type': 'application/x-www-form-urlencoded',

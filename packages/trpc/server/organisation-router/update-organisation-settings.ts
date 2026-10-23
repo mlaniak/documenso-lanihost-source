@@ -1,5 +1,9 @@
 import { ORGANISATION_MEMBER_ROLE_PERMISSIONS_MAP } from '@documenso/lib/constants/organisations';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
+import {
+  assertStaffSmsConnection,
+  mergeDocumentNotificationSettings,
+} from '@documenso/lib/server-only/notifications/settings';
 import { mergeSmsSettingsForStorage } from '@documenso/lib/server-only/sms/sms-credentials';
 import { normalizeBrandingColors } from '@documenso/lib/utils/normalize-branding-colors';
 import { buildOrganisationWhereQuery } from '@documenso/lib/utils/organisations';
@@ -43,6 +47,7 @@ export const updateOrganisationSettingsRoute = authenticatedProcedure
       envelopeExpirationPeriod,
       reminderSettings,
       smsSettings,
+      notificationSettings,
 
       // Branding related settings.
       brandingEnabled,
@@ -119,6 +124,24 @@ export const updateOrganisationSettingsRoute = authenticatedProcedure
               stored: organisation.organisationGlobalSettings.smsSettings,
             });
 
+    const resolvedNotificationSettings =
+      notificationSettings === undefined
+        ? undefined
+        : notificationSettings === null
+          ? Prisma.DbNull
+          : mergeDocumentNotificationSettings(
+              notificationSettings,
+              organisation.organisationGlobalSettings.notificationSettings,
+            );
+    if (notificationSettings !== undefined || smsSettings !== undefined) {
+      assertStaffSmsConnection(
+        notificationSettings === undefined
+          ? organisation.organisationGlobalSettings.notificationSettings
+          : resolvedNotificationSettings,
+        smsSettings === undefined ? organisation.organisationGlobalSettings.smsSettings : resolvedSmsSettings,
+      );
+    }
+
     const derivedDelegateDocumentOwnership =
       delegateDocumentOwnership ?? organisation.organisationGlobalSettings.delegateDocumentOwnership;
 
@@ -185,6 +208,7 @@ export const updateOrganisationSettingsRoute = authenticatedProcedure
             envelopeExpirationPeriod: envelopeExpirationPeriod === null ? Prisma.DbNull : envelopeExpirationPeriod,
             reminderSettings: reminderSettings === null ? Prisma.DbNull : reminderSettings,
             smsSettings: resolvedSmsSettings,
+            notificationSettings: resolvedNotificationSettings,
 
             // Branding related settings.
             brandingEnabled,

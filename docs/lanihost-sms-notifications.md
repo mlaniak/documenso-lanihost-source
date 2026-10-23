@@ -1,5 +1,74 @@
 # LaniHost SMS notifications
 
+## Company channels and internal staff alerts
+
+Organisation Settings → Preferences → **Notifications**, and the equivalent
+team navigation entry, open the notification settings in the existing shared
+settings layout. Choose the organisation first; teams can inherit its settings
+or create an explicit override. Existing email and signer-SMS settings are
+preserved. Newly introduced routes default off.
+
+The company Twilio connection remains in `smsSettings`. Save that company's
+account SID, auth token and sender number; **Load this account’s sender numbers**
+reads the numbers from the entered credentials, or from the same saved account
+when the token is blank. You can choose a sender before the first save. It requires organisation or
+team management permission, never lists another company's account, and does
+not change Twilio. Number ownership is not campaign approval. A changed account
+SID requires the corresponding new token. Preserve existing inbound SMS inboxes:
+the Documenso webhook is for a dedicated sender or an explicitly designed
+forwarding path, not an instruction to replace a working conversation route.
+
+Additional settings live in `notificationSettings` independently of signer SMS:
+
+- **Recipients / signers:** opt-in ntfy delivery to explicitly enrolled email /
+  private-topic pairs. Each signer needs an app/browser subscription and topic
+  ACLs limited to that person. Invitation, resend, scheduled and automatic
+  reminder, and completion events are supported. Signing links stay in email;
+  push opens the authenticated Documenso inbox. No signer bearer token is sent
+  through ntfy.
+- **Me / internal staff:** choose SMS, ntfy, both, or neither. Enter only
+  authorised staff mobile numbers and a private staff topic. Select recipient
+  signed and/or document completed events. Staff SMS uses this company's saved
+  Twilio connection even when signer SMS is off. Signer and staff switches are
+  independent. Company-scoped opt-outs apply to staff SMS too.
+- **Company ntfy connection:** HTTPS server origin plus a write-only publisher
+  token. Tokens are encrypted with the application's secondary encryption key
+  and redacted from API responses. Blank token input preserves the saved token.
+  Changing servers requires a new token. The default approved origin is
+  `https://ntfy.lanihost.com`; an operator can explicitly add HTTPS origins with
+  `NEXT_PRIVATE_NTFY_ALLOWED_ORIGINS` (comma-separated origins). Redirects are
+  refused. Anonymous topic reads must return 401/403 before anything publishes.
+  This check does not replace per-person ACL provisioning and review.
+
+Staff notices omit document titles, signer identities and document contents.
+Links point to the protected team document route. ntfy is app/browser push and
+does not supply a telephone number or ordinary SMS service.
+
+### Outbox and acceptance boundary
+
+The additive migration `20261023170000_document_notifications` adds two nullable
+settings columns and `DocumentNotificationDelivery`. A once-per-minute job
+claims pending rows atomically. Deterministic keys deduplicate repeated hooks;
+queued destinations are fingerprinted and cancelled when the configuration
+changes or a signer/reminder is no longer eligible. Removed documents cascade
+their outbox rows. Provider calls have bounded timeouts and refuse redirects.
+
+`ACCEPTED` records provider acceptance, not device receipt or a staff action.
+Staff SMS keeps the returned Twilio message ID for provider-log inspection;
+it does not claim carrier delivery confirmation. An interrupted or uncertain
+submission becomes `UNKNOWN` and is not blindly retried. Review provider logs
+before deliberately requeuing it; automatic retries could duplicate a real text.
+
+Monitor row counts/age by `status`, especially `PENDING`, `PROCESSING` older than
+ten minutes, and `UNKNOWN`. The existing reminder ledger and email delivery
+remain separate. No ntfy identity, ACL, topic subscription, sender purchase or
+SMS registration is provisioned by saving these application settings.
+
+Before enabling a route, verify the company/account/sender mapping, enrolled
+destinations, topic ACLs and existing opt-out routing. Use a separately authorised
+controlled recipient for a real delivery test. A local UI preview, passing tests,
+or ntfy HTTP acceptance does not resolve the deferred macOS popup verification.
+
 The corresponding source for the deployed AGPL-3.0 build is published at
 <https://github.com/mlaniak/documenso-lanihost-source>. Credentials, phone
 numbers, and production data are not part of the source repository.

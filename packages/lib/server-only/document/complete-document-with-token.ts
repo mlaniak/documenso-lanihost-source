@@ -540,6 +540,7 @@ export const completeDocumentWithToken = async ({
 
   await triggerWebhook({
     event: WebhookTriggerEvents.DOCUMENT_SIGNED,
+    recipientId: recipient.id,
     data: ZWebhookDocumentSchema.parse(mapEnvelopeToWebhookDocumentPayload(updatedDocument)),
     userId: updatedDocument.userId,
     teamId: updatedDocument.teamId ?? undefined,

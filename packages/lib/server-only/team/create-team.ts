@@ -128,6 +128,7 @@ export const createTeam = async ({ userId, teamName, teamUrl, organisationId, in
           data: {
             ...generateDefaultTeamSettings(),
             defaultRecipients: Prisma.DbNull,
+            notificationSettings: Prisma.DbNull,
             id: generateDatabaseId('team_setting'),
           },
         });

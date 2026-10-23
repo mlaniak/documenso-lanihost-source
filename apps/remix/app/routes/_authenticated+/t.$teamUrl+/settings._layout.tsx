@@ -6,7 +6,7 @@ import { Button } from '@documenso/ui/primitives/button';
 import { msg } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { BracesIcon, Globe2Icon, GroupIcon, Settings2Icon, SettingsIcon, Users2Icon, WebhookIcon } from 'lucide-react';
-import { Link, NavLink, Outlet, redirect } from 'react-router';
+import { Link, NavLink, Outlet, redirect, useLocation } from 'react-router';
 
 import { GenericErrorLayout } from '~/components/general/generic-error-layout';
 import { useCurrentTeam } from '~/providers/team';
@@ -39,6 +39,7 @@ export default function TeamsSettingsLayout() {
   const { t } = useLingui();
 
   const team = useCurrentTeam();
+  const location = useLocation();
 
   const teamSettingRoutes = [
     {
@@ -55,6 +56,11 @@ export default function TeamsSettingsLayout() {
     {
       path: `/t/${team.url}/settings/document`,
       label: t`Document`,
+      isSubNav: true,
+    },
+    {
+      path: `/t/${team.url}/settings/document#notifications`,
+      label: t`Notifications`,
       isSubNav: true,
     },
     {
@@ -133,12 +139,16 @@ export default function TeamsSettingsLayout() {
             <NavLink
               to={route.path}
               className={cn('group w-full justify-start', route.isSubNav && 'pl-8')}
-              key={route.path}
+              key={`${route.path}-${route.label}`}
             >
               <Button
                 variant="ghost"
                 className={cn('w-full justify-start', {
-                  'group-aria-[current]:bg-secondary': !route.isSubNavParent,
+                  'bg-secondary':
+                    !route.isSubNavParent &&
+                    (route.path.includes('#')
+                      ? location.hash === '#notifications'
+                      : location.pathname === route.path && location.hash !== '#notifications'),
                 })}
               >
                 {route.icon && <route.icon className="mr-2 h-5 w-5" />}

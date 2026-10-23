@@ -106,6 +106,16 @@ export const mergeSmsSettingsForStorage = (options: {
 
   const existingAuthToken = typeof storedRecord.authToken === 'string' ? storedRecord.authToken : undefined;
 
+  if (
+    storedRecord.accountSid &&
+    storedRecord.accountSid !== options.submitted.accountSid &&
+    !options.submitted.newAuthToken
+  ) {
+    throw new AppError(AppErrorCode.INVALID_REQUEST, {
+      message: 'Enter the new account’s auth token when changing Twilio accounts',
+    });
+  }
+
   const authToken = options.submitted.newAuthToken
     ? encryptSmsAuthToken(options.submitted.newAuthToken)
     : existingAuthToken;
@@ -128,4 +138,19 @@ export const mergeSmsSettingsForStorage = (options: {
     accountSid: options.submitted.accountSid,
     ...(authToken ? { authToken } : {}),
   };
+};
+
+/** A read-only sender lookup may use entered credentials before a first save. */
+export const resolveSenderLookupCredentials = (
+  stored: { accountSid?: string; authToken?: string },
+  draft: { accountSid?: string; newAuthToken?: string },
+): SmsCredentials | null => {
+  const accountSid = draft.accountSid?.trim() || stored.accountSid;
+  if (accountSid && draft.newAuthToken?.trim()) {
+    return { accountSid, authToken: draft.newAuthToken.trim() };
+  }
+  if (!accountSid || accountSid !== stored.accountSid || !stored.authToken) {
+    return null;
+  }
+  return resolveSmsCredentials(stored);
 };

@@ -13,6 +13,11 @@ import type { TDefaultRecipients } from '@documenso/lib/types/default-recipients
 import { ZDefaultRecipientsSchema } from '@documenso/lib/types/default-recipients';
 import { type TDocumentMetaDateFormat, ZDocumentMetaTimezoneSchema } from '@documenso/lib/types/document-meta';
 import {
+  type DocumentNotificationSettingsForm,
+  toDocumentNotificationSettingsForm,
+  ZDocumentNotificationSettingsFormSchema,
+} from '@documenso/lib/types/document-notification-settings';
+import {
   type TSmsSettingsForm,
   toSmsSettingsFormValue,
   ZSmsSettingsFormValueSchema,
@@ -22,6 +27,7 @@ import { recipientAbbreviation } from '@documenso/lib/utils/recipient-formatter'
 import { extractTeamSignatureSettings } from '@documenso/lib/utils/teams';
 import { DocumentSignatureSettingsTooltip } from '@documenso/ui/components/document/document-signature-settings-tooltip';
 import { ExpirationPeriodPicker } from '@documenso/ui/components/document/expiration-period-picker';
+import { NotificationSettingsPicker } from '@documenso/ui/components/document/notification-settings-picker';
 import { ReminderSettingsPicker } from '@documenso/ui/components/document/reminder-settings-picker';
 import { SmsSettingsPicker } from '@documenso/ui/components/document/sms-settings-picker';
 import { RecipientRoleSelect } from '@documenso/ui/components/recipient/recipient-role-select';
@@ -72,6 +78,7 @@ export type TDocumentPreferencesFormSchema = {
   envelopeExpirationPeriod: TEnvelopeExpirationPeriod | null;
   reminderSettings: TEnvelopeReminderSettings | null;
   smsSettings: TSmsSettingsForm | null;
+  notificationSettings: DocumentNotificationSettingsForm | null;
 };
 
 type SettingsSubset = Pick<
@@ -92,6 +99,7 @@ type SettingsSubset = Pick<
   | 'envelopeExpirationPeriod'
   | 'reminderSettings'
   | 'smsSettings'
+  | 'notificationSettings'
 >;
 
 export type DocumentPreferencesFormProps = {
@@ -102,6 +110,10 @@ export type DocumentPreferencesFormProps = {
   inboundWebhookUrl?: string;
   /** Sends a real test message using the saved SMS settings. */
   onSendTestSms?: (phone: string) => Promise<void>;
+  onLoadSmsSenders?: (draft: {
+    accountSid?: string;
+    newAuthToken?: string;
+  }) => Promise<Array<{ phoneNumber: string; friendlyName: string }>>;
   onFormSubmit: (data: TDocumentPreferencesFormSchema) => Promise<void>;
 };
 
@@ -112,6 +124,7 @@ export const DocumentPreferencesForm = ({
   isAiFeaturesConfigured = false,
   inboundWebhookUrl,
   onSendTestSms,
+  onLoadSmsSenders,
 }: DocumentPreferencesFormProps) => {
   const { _ } = useLingui();
   const { user, organisations } = useSession();
@@ -140,6 +153,7 @@ export const DocumentPreferencesForm = ({
     envelopeExpirationPeriod: ZEnvelopeExpirationPeriod.nullable(),
     reminderSettings: ZEnvelopeReminderSettings.nullable(),
     smsSettings: ZSmsSettingsFormValueSchema,
+    notificationSettings: ZDocumentNotificationSettingsFormSchema.nullable(),
   });
 
   const form = useForm<TDocumentPreferencesFormSchema>({
@@ -159,6 +173,7 @@ export const DocumentPreferencesForm = ({
       envelopeExpirationPeriod: settings.envelopeExpirationPeriod ?? null,
       reminderSettings: settings.reminderSettings ?? null,
       smsSettings: toSmsSettingsFormValue(settings.smsSettings),
+      notificationSettings: toDocumentNotificationSettingsForm(settings.notificationSettings),
     },
     resolver: zodResolver(ZDocumentPreferencesFormSchema),
   });
@@ -172,7 +187,26 @@ export const DocumentPreferencesForm = ({
       return;
     }
 
-    form.reset(data);
+    form.reset({
+      ...data,
+      smsSettings: data.smsSettings
+        ? {
+            ...data.smsSettings,
+            newAuthToken: '',
+            hasAuthToken: Boolean(data.smsSettings.newAuthToken) || data.smsSettings.hasAuthToken,
+          }
+        : null,
+      notificationSettings: data.notificationSettings
+        ? {
+            ...data.notificationSettings,
+            ntfy: {
+              ...data.notificationSettings.ntfy,
+              newToken: '',
+              hasToken: Boolean(data.notificationSettings.ntfy.newToken) || data.notificationSettings.ntfy.hasToken,
+            },
+          }
+        : null,
+    });
   });
 
   return (
@@ -738,17 +772,21 @@ export const DocumentPreferencesForm = ({
             render={({ field }) => (
               <FormItem className="flex-1">
                 <FormLabel>
-                  <Trans>Text Message Notifications</Trans>
+                  <Trans>Signer SMS and company Twilio connection</Trans>
                 </FormLabel>
 
                 <FormControl>
-                  <SmsSettingsPicker
-                    value={field.value}
-                    onChange={field.onChange}
-                    inheritLabel={canInherit ? t`Inherit from organisation` : undefined}
-                    inboundWebhookUrl={inboundWebhookUrl}
-                    onSendTest={onSendTestSms}
-                  />
+                  <div>
+                    <SmsSettingsPicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      inheritLabel={canInherit ? t`Inherit from organisation` : undefined}
+                      inboundWebhookUrl={inboundWebhookUrl}
+                      onSendTest={onSendTestSms}
+                      onLoadSenders={onLoadSmsSenders}
+                      forceConnection={form.watch('notificationSettings')?.staff.smsEnabled}
+                    />
+                  </div>
                 </FormControl>
 
                 <FormDescription>
@@ -758,6 +796,37 @@ export const DocumentPreferencesForm = ({
                   </Trans>
                 </FormDescription>
 
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="notificationSettings"
+            render={({ field }) => (
+              <FormItem id="notifications" className="flex-1 scroll-mt-8">
+                <FormLabel>
+                  <Trans>Signer push and internal staff notifications</Trans>
+                </FormLabel>
+                <FormControl>
+                  <div>
+                    <NotificationSettingsPicker value={field.value} onChange={field.onChange} canInherit={canInherit} />
+                  </div>
+                </FormControl>
+                <FormDescription>
+                  <Trans>
+                    Email and signer SMS keep their existing settings. New routes stay off until configured here.
+                  </Trans>
+                </FormDescription>
+                {form.formState.errors.notificationSettings && (
+                  <p role="alert" className="text-destructive text-sm">
+                    <Trans>
+                      Check the notification fields: use valid enrolled recipients, private topics, and international
+                      mobile numbers.
+                    </Trans>
+                  </p>
+                )}
                 <FormMessage />
               </FormItem>
             )}

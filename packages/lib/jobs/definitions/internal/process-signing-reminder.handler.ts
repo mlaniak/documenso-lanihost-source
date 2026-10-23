@@ -11,12 +11,12 @@ import {
   WebhookTriggerEvents,
 } from '@prisma/client';
 import { createElement } from 'react';
-
 import { getI18nInstance } from '../../../client-only/providers/i18n-server';
 import { NEXT_PUBLIC_WEBAPP_URL } from '../../../constants/app';
 import { RECIPIENT_ROLES_DESCRIPTION } from '../../../constants/recipient-roles';
 import { buildEnvelopeEmailHeaders } from '../../../server-only/email/build-envelope-email-headers';
 import { getEmailContext } from '../../../server-only/email/get-email-context';
+import { enqueueDocumentNotification } from '../../../server-only/notifications/document-notifications';
 import { assertOrganisationRatesAndLimits } from '../../../server-only/rate-limit/assert-organisation-rates-and-limits';
 import { updateRecipientNextReminder } from '../../../server-only/recipient/update-recipient-next-reminder';
 import { triggerWebhook } from '../../../server-only/webhooks/trigger/trigger-webhook';
@@ -240,6 +240,17 @@ export const run = async ({ payload, io }: { payload: TProcessSigningReminderJob
           isResending: false,
         },
       }),
+    });
+
+    await enqueueDocumentNotification({
+      envelopeId: envelope.id,
+      teamId: envelope.teamId,
+      recipientId,
+      audience: 'SIGNER',
+      event: 'AUTOMATIC_REMINDER',
+      occurrence: now.toISOString(),
+    }).catch(() => {
+      io.logger.warn('Could not queue reminder push notification');
     });
 
     await triggerWebhook({
