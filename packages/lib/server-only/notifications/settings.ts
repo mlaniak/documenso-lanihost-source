@@ -31,14 +31,20 @@ export const getNtfyOrigin = (serverUrl: string): string => {
 
 export const mergeDocumentNotificationSettings = (submitted: DocumentNotificationSettingsForm, stored: unknown) => {
   const previous = parseDocumentNotificationSettings(stored);
-  const origin = getNtfyOrigin(submitted.ntfy.serverUrl);
+  const pushEnabled = submitted.signers.ntfyEnabled || submitted.staff.ntfyEnabled;
+  const submittedOrigin = submitted.ntfy.serverUrl.replace(/\/$/, '');
+  const previousOrigin = previous.ntfy.serverUrl.replace(/\/$/, '');
+  // An unused, unchanged default must not block independent staff SMS settings
+  // on installations whose approved ntfy origin differs from that default.
+  const configuringConnection = Boolean(submitted.ntfy.newToken) || submittedOrigin !== previousOrigin;
+  const origin = pushEnabled || configuringConnection ? getNtfyOrigin(submitted.ntfy.serverUrl) : previousOrigin;
   if (previous.ntfy.token && origin !== previous.ntfy.serverUrl.replace(/\/$/, '') && !submitted.ntfy.newToken) {
     throw new AppError(AppErrorCode.INVALID_REQUEST, {
       message: 'Enter a new publisher token when changing ntfy servers',
     });
   }
   const token = submitted.ntfy.newToken ? encryptSmsAuthToken(submitted.ntfy.newToken) : previous.ntfy.token;
-  if ((submitted.signers.ntfyEnabled || submitted.staff.ntfyEnabled) && !token) {
+  if (pushEnabled && !token) {
     throw new AppError(AppErrorCode.INVALID_REQUEST, {
       message: 'Save an ntfy publisher token before enabling push notifications',
     });
