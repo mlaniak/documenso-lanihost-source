@@ -89,6 +89,23 @@ beforeEach(() => {
 });
 
 describe('isolated delivery routes', () => {
+  it('allows staff SMS without configuring an unused ntfy origin, while validating push when enabled', () => {
+    vi.stubEnv('NEXT_PRIVATE_NTFY_ALLOWED_ORIGINS', 'https://custom-ntfy.example.com');
+    try {
+      const settings = emptyDocumentNotificationSettings();
+      settings.staff.smsEnabled = true;
+      settings.staff.phones = ['+18325550102'];
+      expect(mergeDocumentNotificationSettings(settings, null).staff.smsEnabled).toBe(true);
+      settings.staff.ntfyEnabled = true;
+      settings.staff.topic = 'private-staff';
+      expect(() => mergeDocumentNotificationSettings(settings, null)).toThrow(/approved/);
+      settings.staff.ntfyEnabled = false;
+      settings.ntfy.newToken = 'publisher';
+      expect(() => mergeDocumentNotificationSettings(settings, null)).toThrow(/approved/);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
   it('only routes signer push to the exact enrolled email', () => {
     expect(
       getNotificationRoutes({
