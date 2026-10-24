@@ -150,10 +150,10 @@ export const DocumentShareButton = ({ token, documentId, className, trigger }: D
         <div className="flex w-full flex-col">
           <div className="rounded-md border p-4">
             I just {token ? 'signed' : 'sent'} a document in style with{' '}
-            <span className="font-medium text-blue-400">@documenso</span>. Check it out!
+            <span className="font-medium text-blue-700 dark:text-blue-300">@documenso</span>. Check it out!
             <span className="mt-2 block" />
             <span
-              className={cn('break-all font-medium text-blue-400', {
+              className={cn('break-all font-medium text-blue-700 dark:text-blue-300', {
                 'animate-pulse': !shareLink?.slug,
               })}
             >
