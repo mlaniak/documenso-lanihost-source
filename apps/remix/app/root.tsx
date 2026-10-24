@@ -126,7 +126,13 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
   const renderedTheme = recipientTheme ?? theme;
 
   return (
-    <html translate="no" lang={lang} data-theme={renderedTheme} className={renderedTheme ?? ''}>
+    <html
+      translate="no"
+      lang={lang}
+      data-theme={renderedTheme}
+      className={renderedTheme ?? ''}
+      style={recipientTheme ? { colorScheme: recipientTheme } : undefined}
+    >
       <head>
         <meta charSet="utf-8" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
@@ -138,11 +144,7 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links nonce={nonce(cspNonce)} />
         <meta name="google" content="notranslate" />
-        {recipientTheme ? (
-          <meta name="color-scheme" content={recipientTheme} />
-        ) : (
-          <PreventFlashOnWrongTheme ssrTheme={Boolean(data.theme)} nonce={nonce(cspNonce)} />
-        )}
+        <PreventFlashOnWrongTheme ssrTheme={Boolean(data.theme)} nonce={nonce(cspNonce)} />
 
         {disableAnimations && (
           <style
