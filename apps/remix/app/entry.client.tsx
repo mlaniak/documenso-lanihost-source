@@ -7,6 +7,7 @@ import { StrictMode, startTransition, useEffect } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { HydratedRouter } from 'react-router/dom';
 
+import { initializeClientStyleNonce } from './utils/client-style-nonce';
 import './utils/polyfills/promise-with-resolvers';
 
 function PosthogInit() {
@@ -27,6 +28,8 @@ function PosthogInit() {
 }
 
 async function main() {
+  initializeClientStyleNonce(document);
+
   const locale = detect(fromHtmlTag('lang')) || 'en';
 
   await dynamicActivate(locale);
