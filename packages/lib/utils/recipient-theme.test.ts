@@ -1,3 +1,4 @@
+import { serialize } from 'superjson';
 import { describe, expect, it } from 'vitest';
 
 import { getRecipientTheme } from './recipient-theme';
@@ -8,6 +9,17 @@ const recipientMatch = (background: string, allowCustomBranding = true) => ({
 });
 
 describe('getRecipientTheme', () => {
+  it.each([
+    'routes/_recipient+/sign.$token+/_index',
+    'routes/_recipient+/d.$token+/_index',
+  ])('reads SuperJSON branding for %s before the account or system dark theme can leak into dialogs', (id) => {
+    const match = recipientMatch('#ffffff');
+    expect(
+      getRecipientTheme([{ id, data: serialize({ ...match.data, signedAt: new Date('2026-10-24T04:59:38Z') }) }]),
+    ).toBe('light');
+    expect(getRecipientTheme([{ id, data: serialize(recipientMatch('#101827').data) }])).toBe('dark');
+  });
+
   it('uses a light theme for the white branded completion page even when the account uses dark mode', () => {
     expect(getRecipientTheme([{ id: 'root', data: { theme: 'dark' } }, recipientMatch('#ffffff')])).toBe('light');
   });

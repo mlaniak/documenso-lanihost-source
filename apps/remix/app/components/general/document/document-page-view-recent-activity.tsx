@@ -101,7 +101,7 @@ export const DocumentPageViewRecentActivity = ({ documentId, userId }: DocumentP
 
             {documentAuditLogs.length === 0 && (
               <div className="flex items-center justify-center py-4">
-                <p className="text-muted-foreground/70 text-sm">
+                <p className="text-muted-foreground text-sm">
                   <Trans>No recent activity</Trans>
                 </p>
               </div>
@@ -180,14 +180,14 @@ export const DocumentPageViewRecentActivity = ({ documentId, userId }: DocumentP
                 </div>
 
                 <p
-                  className="flex-auto truncate py-0.5 text-muted-foreground text-xs leading-5 dark:text-muted-foreground/70"
+                  className="flex-auto truncate py-0.5 text-muted-foreground text-xs leading-5 dark:text-muted-foreground"
                   title={formatDocumentAuditLogAction(i18n, auditLog, userId).description}
                 >
                   {formatDocumentAuditLogAction(i18n, auditLog, userId).description}
                 </p>
 
                 <time
-                  className="flex-none py-0.5 text-muted-foreground text-xs leading-5 dark:text-muted-foreground/70"
+                  className="flex-none py-0.5 text-muted-foreground text-xs leading-5 dark:text-muted-foreground"
                   dateTime={auditLog.createdAt.toISOString()}
                   title={i18n.date(auditLog.createdAt, DateTime.DATETIME_MED)}
                   suppressHydrationWarning

@@ -187,7 +187,7 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
           href={SOURCE_CODE_URL}
           target="_blank"
           rel="noreferrer"
-          className="fixed right-3 bottom-3 z-50 rounded-md border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur hover:text-foreground"
+          className="fixed right-3 bottom-3 z-50 rounded-md border bg-background/95 px-2 py-1 font-medium text-foreground text-xs shadow-sm backdrop-blur hover:underline"
         >
           Source code (AGPL-3.0)
         </a>

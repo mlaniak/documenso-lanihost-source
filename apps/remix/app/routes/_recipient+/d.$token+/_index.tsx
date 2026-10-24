@@ -210,7 +210,7 @@ const DirectSigningPageV1 = ({ data }: { data: Awaited<ReturnType<typeof handleV
 
           <div className="mt-2.5 mb-8 flex items-center gap-x-2 text-muted-foreground">
             <UsersIcon className="h-4 w-4" />
-            <p className="text-muted-foreground/80">
+            <p className="text-muted-foreground">
               <Plural value={template.recipients.length} one="# recipient" other="# recipients" />
             </p>
           </div>
