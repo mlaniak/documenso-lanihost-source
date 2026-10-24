@@ -19,9 +19,13 @@ import {
 } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import type { TReminderRecipientPhone } from '../../types/recipient-phone';
+import type { TReminderRecipientChannels } from '../../types/reminder-recipient-channels';
 import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';
+import { enqueueDocumentNotification } from '../notifications/document-notifications';
 import { updateReminderRecipientPhones } from '../recipient/update-reminder-recipient-phones';
+import { validateReminderRecipientChannels } from '../recipient/validate-reminder-recipient-channels';
 import { enqueueSmsDelivery } from '../sms/enqueue-sms-delivery';
+import { getEnvelopeSmsContext } from '../sms/get-envelope-sms-context';
 import { assertUserNotDisabled } from '../user/assert-user-not-disabled';
 
 export type UpdateDocumentReminderScheduleOptions = {
@@ -34,6 +38,7 @@ export type UpdateDocumentReminderScheduleOptions = {
   total?: number;
   intervalDays?: number | null;
   recipientPhones?: TReminderRecipientPhone[];
+  recipientChannels?: TReminderRecipientChannels;
   smsEnabled?: boolean;
 };
 
@@ -47,6 +52,7 @@ export const updateDocumentReminderSchedule = async ({
   total = 1,
   intervalDays = null,
   recipientPhones,
+  recipientChannels,
   smsEnabled,
 }: UpdateDocumentReminderScheduleOptions) => {
   const user = await prisma.user.findFirstOrThrow({
@@ -107,8 +113,10 @@ export const updateDocumentReminderSchedule = async ({
   }
 
   if (
-    envelope.documentMeta.distributionMethod === DocumentDistributionMethod.NONE ||
-    !extractDerivedDocumentEmailSettings(envelope.documentMeta).recipientSigningRequest
+    scheduledAt &&
+    (!recipientChannels || recipientChannels.some((recipient) => recipient.email)) &&
+    (envelope.documentMeta.distributionMethod === DocumentDistributionMethod.NONE ||
+      !extractDerivedDocumentEmailSettings(envelope.documentMeta).recipientSigningRequest)
   ) {
     throw new AppError(AppErrorCode.INVALID_REQUEST, {
       message: 'Signing request emails are disabled for this document',
@@ -127,6 +135,23 @@ export const updateDocumentReminderSchedule = async ({
     });
   }
 
+  const channels =
+    scheduledAt && recipientChannels
+      ? validateReminderRecipientChannels({
+          recipientIds: recipients,
+          eligibleRecipients,
+          recipientChannels,
+          recipientPhones,
+        })
+      : null;
+  if (
+    channels &&
+    [...channels.values()].some((recipient) => recipient.sms) &&
+    !(await getEnvelopeSmsContext({ teamId, documentSmsEnabled: true })).enabled
+  ) {
+    throw new AppError(AppErrorCode.INVALID_REQUEST, { message: 'Text messages are unavailable for this team.' });
+  }
+
   const updatedAt = new Date();
   const reminderSettings = envelope.documentMeta.reminderSettings
     ? ZEnvelopeReminderSettings.parse(envelope.documentMeta.reminderSettings)
@@ -141,7 +166,7 @@ export const updateDocumentReminderSchedule = async ({
         recipientPhones,
       });
 
-      if (smsEnabled !== undefined) {
+      if (!channels && smsEnabled !== undefined) {
         await tx.documentMeta.update({
           where: { id: envelope.documentMeta.id },
           data: { smsEnabled },
@@ -162,6 +187,7 @@ export const updateDocumentReminderSchedule = async ({
       const activeDeliveries = await tx.scheduledReminderDelivery.findMany({
         where: {
           recipientId: recipient.id,
+          kind: 'REMINDER',
           status: {
             in: [ScheduledReminderDeliveryStatus.PENDING, ScheduledReminderDeliveryStatus.PROCESSING],
           },
@@ -206,28 +232,40 @@ export const updateDocumentReminderSchedule = async ({
         });
       }
 
-      const sequenceId = scheduledAt ? nanoid(24) : null;
+      const selectedChannels = channels?.get(recipient.id);
+      const deliveryChannels = selectedChannels
+        ? [...(selectedChannels.email ? ['EMAIL' as const] : []), ...(selectedChannels.sms ? ['SMS' as const] : [])]
+        : ['EMAIL' as const];
+      // Each channel owns its sequence, so an SMS failure cannot cancel email.
       const deliveries = scheduledAt
-        ? await Promise.all(
-            sequenceDates.map((deliveryAt, index) =>
-              tx.scheduledReminderDelivery.create({
-                data: {
-                  envelopeId: envelope.id,
-                  recipientId: recipient.id,
-                  createdById: userId,
-                  scheduledAt: deliveryAt,
-                  nextAttemptAt: deliveryAt,
-                  sequenceId,
-                  sequencePosition: index + 1,
-                  sequenceTotal: sequenceDates.length,
-                  sequenceIntervalDays: sequenceDates.length > 1 ? intervalDays : null,
-                  timezone,
-                },
+        ? (
+            await Promise.all(
+              deliveryChannels.map(async (channel) => {
+                const sequenceId = nanoid(24);
+                return await Promise.all(
+                  sequenceDates.map((deliveryAt, index) =>
+                    tx.scheduledReminderDelivery.create({
+                      data: {
+                        envelopeId: envelope.id,
+                        recipientId: recipient.id,
+                        createdById: userId,
+                        channel,
+                        ...(channel === 'SMS' ? { smsEnabledOverride: true } : {}),
+                        scheduledAt: deliveryAt,
+                        nextAttemptAt: deliveryAt,
+                        sequenceId,
+                        sequencePosition: index + 1,
+                        sequenceTotal: sequenceDates.length,
+                        sequenceIntervalDays: sequenceDates.length > 1 ? intervalDays : null,
+                        timezone,
+                      },
+                    }),
+                  ),
+                );
               }),
-            ),
-          )
+            )
+          ).flat()
         : [];
-      const delivery = deliveries[0] ?? null;
 
       await tx.recipient.update({
         where: { id: recipient.id },
@@ -246,7 +284,7 @@ export const updateDocumentReminderSchedule = async ({
             },
       });
 
-      if (delivery) {
+      for (const delivery of deliveries.filter((_, index) => index % sequenceDates.length === 0)) {
         await tx.documentAuditLog.create({
           data: createDocumentAuditLogData({
             type: DOCUMENT_AUDIT_LOG_TYPE.REMINDER_SCHEDULED,
@@ -259,7 +297,8 @@ export const updateDocumentReminderSchedule = async ({
               recipientRole: recipient.role,
               scheduledReminderId: delivery.id,
               scheduledAt: delivery.scheduledAt.toISOString(),
-              sequenceTotal: deliveries.length,
+              sequenceTotal: sequenceDates.length,
+              ...(channels ? { channel: delivery.channel } : {}),
               timezone,
             },
           }),
@@ -271,7 +310,26 @@ export const updateDocumentReminderSchedule = async ({
   // Enqueued after the transaction commits, not inside it. enqueueSmsDelivery
   // uses the global client, so a rollback would otherwise leave a text queued
   // for a reminder that no longer exists.
-  if (scheduledAt) {
+  if (scheduledAt && channels) {
+    await Promise.all(
+      sequenceDates.flatMap((deliveryAt) =>
+        recipients.map((recipientId) =>
+          enqueueDocumentNotification({
+            envelopeId: envelope.id,
+            teamId,
+            recipientId,
+            audience: 'SIGNER',
+            event: 'REMINDER',
+            scheduledAt: deliveryAt,
+            occurrence: deliveryAt.toISOString(),
+          }).catch(() => {
+            console.error('Could not queue signer push notification');
+          }),
+        ),
+      ),
+    );
+  }
+  if (scheduledAt && !channels) {
     await Promise.all(
       sequenceDates.flatMap((deliveryAt) =>
         recipients.map((recipientId) =>

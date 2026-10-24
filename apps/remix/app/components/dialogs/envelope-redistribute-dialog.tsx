@@ -25,14 +25,21 @@ import { Input } from '@documenso/ui/primitives/input';
 import { RadioGroup, RadioGroupItem } from '@documenso/ui/primitives/radio-group';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { msg, plural } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { DocumentStatus, EnvelopeType, RecipientRole, SigningStatus } from '@prisma/client';
-import { CalendarClockIcon, Loader2Icon, XIcon } from 'lucide-react';
+import {
+  CalendarClockIcon,
+  Loader2Icon,
+  MailIcon,
+  MessageSquareIcon,
+  MinusIcon,
+  PencilIcon,
+  XIcon,
+} from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router';
-import { match } from 'ts-pattern';
 import * as z from 'zod';
 import { useOptionalCurrentTeam } from '~/providers/team';
 import { getDistributeErrorMessage } from '~/utils/toast-error-messages';
@@ -49,38 +56,37 @@ export type EnvelopeRedistributeDialogProps = {
 
 export const ZEnvelopeRedistributeFormSchema = z
   .object({
-    recipients: z.array(z.number()).min(1, {
-      message: msg`You must select at least one item`.id,
-    }),
+    recipientChannels: z.record(z.object({ email: z.boolean(), sms: z.boolean() })),
     delivery: z.enum(['now', 'scheduled']),
     scheduledAt: z.string(),
     scheduleType: z.enum(['one', 'sequence']),
     intervalDays: z.number().int().min(1).max(30),
     total: z.number().int().min(1).max(5),
-    smsEnabled: z.boolean(),
     recipientPhones: z.record(z.string()),
   })
   .superRefine((value, context) => {
-    for (const recipientId of value.recipients) {
-      const phone = value.recipientPhones[`recipient_${recipientId}`] ?? '';
-      if (!ZRecipientPhoneSchema.safeParse(phone).success) {
+    const selectedChannels = Object.entries(value.recipientChannels).filter(
+      ([, channel]) => channel.email || channel.sms,
+    );
+    if (selectedChannels.length === 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: msg`Select at least one communication method.`.id,
+        path: ['recipientChannels'],
+      });
+    }
+    for (const [key, channel] of selectedChannels) {
+      if (!channel.sms) {
+        continue;
+      }
+      const phone = value.recipientPhones[key] ?? '';
+      if (!ZRecipientPhoneSchema.safeParse(phone).success || !normalisePhoneNumber(phone)) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
           message: msg`Enter a valid mobile number. Include a country code outside the US or Canada.`.id,
-          path: ['recipientPhones', `recipient_${recipientId}`],
+          path: ['recipientPhones', key],
         });
       }
-    }
-
-    if (
-      value.smsEnabled &&
-      !value.recipients.some((id) => normalisePhoneNumber(value.recipientPhones[`recipient_${id}`] ?? ''))
-    ) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: msg`Add a mobile number for a selected recipient, or turn off text messages.`.id,
-        path: ['smsEnabled'],
-      });
     }
 
     if (value.delivery !== 'scheduled') {
@@ -108,8 +114,10 @@ export const ZEnvelopeRedistributeFormSchema = z
 
 export type TEnvelopeRedistributeFormSchema = z.infer<typeof ZEnvelopeRedistributeFormSchema>;
 
-export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: EnvelopeRedistributeDialogProps) => {
-  const recipients = envelope.recipients;
+export const EnvelopeRedistributeDialog = ({ envelope, trigger }: EnvelopeRedistributeDialogProps) => {
+  const recipients = envelope.recipients.filter(
+    (recipient) => recipient.signingStatus === SigningStatus.NOT_SIGNED && recipient.role !== RecipientRole.CC,
+  );
   const formId = useId();
 
   const { toast } = useToast();
@@ -118,20 +126,21 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
   const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const [isOpen, setIsOpen] = useState(false);
+  const [editingPhoneIds, setEditingPhoneIds] = useState<number[]>([]);
   const [scheduledReminderDates, setScheduledReminderDates] = useState<Record<number, Date | null>>({});
 
   const { mutateAsync: redistributeEnvelope } = trpcReact.envelope.redistribute.useMutation();
 
   const currentTeam = useOptionalCurrentTeam();
-  const smsDefaultOn = currentTeam?.preferences?.smsDefaultOn ?? false;
   const smsAvailable = currentTeam?.preferences?.smsAvailable ?? false;
   const { mutateAsync: updateReminderSchedule, isPending: isUpdatingReminderSchedule } =
     trpcReact.envelope.reminderSchedule.update.useMutation();
 
   const form = useForm<TEnvelopeRedistributeFormSchema>({
     defaultValues: {
-      recipients: [],
-      smsEnabled: smsAvailable && (envelope.documentMeta?.smsEnabled ?? smsDefaultOn),
+      recipientChannels: Object.fromEntries(
+        recipients.map((recipient) => [`recipient_${recipient.id}`, { email: true, sms: false }]),
+      ),
       recipientPhones: Object.fromEntries(
         recipients.map((recipient) => [`recipient_${recipient.id}`, recipient.phone ?? '']),
       ),
@@ -149,12 +158,13 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
     formState: { isSubmitting },
   } = form;
 
-  const selectedRecipientIds = form.watch('recipients');
+  const recipientChannels = form.watch('recipientChannels');
   const recipientPhones = form.watch('recipientPhones');
-  const smsEnabled = form.watch('smsEnabled');
-  const smsRecipientCount = selectedRecipientIds.filter((id) =>
-    normalisePhoneNumber(recipientPhones[`recipient_${id}`] ?? ''),
-  ).length;
+  const selectedMethods = Object.values(recipientChannels);
+  const emailCount = selectedMethods.filter((channel) => channel.email).length;
+  const smsCount = selectedMethods.filter((channel) => channel.sms).length;
+  const selectedMethodCount = emailCount + smsCount;
+  const allSelected = selectedMethodCount === recipients.length * (smsAvailable ? 2 : 1) && recipients.length > 0;
   const delivery = form.watch('delivery');
   const scheduleType = form.watch('scheduleType');
   const scheduledAt = form.watch('scheduledAt');
@@ -171,25 +181,33 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
   };
 
   const onFormSubmit = async ({
-    recipients,
+    recipientChannels,
     delivery,
     scheduledAt,
     scheduleType,
     intervalDays,
     total,
-    smsEnabled,
     recipientPhones,
   }: TEnvelopeRedistributeFormSchema) => {
     try {
-      const phoneUpdates = recipients.map((id) => ({ id, phone: recipientPhones[`recipient_${id}`] ?? '' }));
+      const channels = recipients.flatMap((recipient) => {
+        const selection = recipientChannels[`recipient_${recipient.id}`];
+        return selection && (selection.email || selection.sms)
+          ? [{ id: recipient.id, email: selection.email, sms: smsAvailable && selection.sms }]
+          : [];
+      });
+      const selectedRecipientIds = channels.map((channel) => channel.id);
+      const phoneUpdates = channels
+        .filter((channel) => channel.sms)
+        .map(({ id }) => ({ id, phone: recipientPhones[`recipient_${id}`] ?? '' }));
       if (delivery === 'scheduled') {
         const response = await updateReminderSchedule({
           envelopeId: envelope.id,
-          recipients,
+          recipients: selectedRecipientIds,
+          recipientChannels: channels,
           scheduledAt: new Date(scheduledAt),
           timezone: localTimeZone,
           recipientPhones: phoneUpdates,
-          smsEnabled: smsAvailable ? smsEnabled : undefined,
           total: scheduleType === 'sequence' ? total : 1,
           intervalDays: scheduleType === 'sequence' ? intervalDays : null,
         });
@@ -221,29 +239,15 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
 
       await redistributeEnvelope({
         envelopeId: envelope.id,
-        recipients,
-        smsEnabled: smsAvailable ? smsEnabled : undefined,
+        recipients: selectedRecipientIds,
+        recipientChannels: channels,
         recipientPhones: phoneUpdates,
       });
       await refreshReminderData();
 
-      const successMessage = match(envelopeType)
-        .with(EnvelopeType.DOCUMENT, () => ({
-          title: t`Document resent`,
-          description: t`Your document has been resent successfully.`,
-        }))
-        .with(EnvelopeType.TEMPLATE, () => ({
-          title: t`Template resent`,
-          description: t`Your template has been resent successfully.`,
-        }))
-        .otherwise(() => ({
-          title: t`Envelope resent`,
-          description: t`Your envelope has been resent successfully.`,
-        }));
-
       toast({
-        title: successMessage.title,
-        description: successMessage.description,
+        title: t`Reminder submitted`,
+        description: t`Your selected communication methods have been submitted. Check reminder activity for delivery status.`,
         duration: 5000,
       });
 
@@ -299,12 +303,15 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
 
     form.reset({
       ...form.getValues(),
-      smsEnabled: smsAvailable && (envelope.documentMeta?.smsEnabled ?? smsDefaultOn),
+      recipientChannels: Object.fromEntries(
+        recipients.map((recipient) => [`recipient_${recipient.id}`, { email: true, sms: false }]),
+      ),
       recipientPhones: Object.fromEntries(
         recipients.map((recipient) => [`recipient_${recipient.id}`, recipient.phone ?? '']),
       ),
     });
 
+    setEditingPhoneIds([]);
     setScheduledReminderDates(
       Object.fromEntries(recipients.map((recipient) => [recipient.id, recipient.scheduledReminderAt ?? null])),
     );
@@ -319,13 +326,13 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
       <DialogTrigger asChild>{trigger}</DialogTrigger>
 
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto" hideClose>
-        <DialogHeader>
+        <DialogHeader className="text-left">
           <DialogTitle>
             <Trans>Resend Document</Trans>
           </DialogTitle>
 
           <DialogDescription>
-            <Trans>Send a reminder now or schedule it for later.</Trans>
+            <Trans>Choose how to contact each recipient, then send now or schedule for later.</Trans>
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -333,175 +340,247 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
             <fieldset disabled={isBusy}>
               <FormField
                 control={form.control}
-                name="recipients"
-                render={({ field: { value, onChange } }) => (
-                  <FormItem>
-                    <p className="px-3 text-muted-foreground text-xs">
-                      <Trans>Select each recipient who should receive this reminder.</Trans>
+                name="recipientChannels"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                      <h3 className="font-medium text-sm">
+                        <Trans>Communication methods</Trans>
+                      </h3>
+                      <label
+                        htmlFor={`${formId}-all`}
+                        className="flex min-h-9 cursor-pointer items-center gap-2 text-sm"
+                      >
+                        <span className="relative flex items-center">
+                          <Checkbox
+                            id={`${formId}-all`}
+                            disabled={recipients.length === 0}
+                            className="data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary"
+                            checkClassName={!allSelected && selectedMethodCount > 0 ? 'invisible' : undefined}
+                            checked={allSelected ? true : selectedMethodCount > 0 ? 'indeterminate' : false}
+                            onCheckedChange={(checked) =>
+                              field.onChange(
+                                Object.fromEntries(
+                                  recipients.map((recipient) => [
+                                    `recipient_${recipient.id}`,
+                                    { email: checked === true, sms: smsAvailable && checked === true },
+                                  ]),
+                                ),
+                              )
+                            }
+                          />
+                          {!allSelected && selectedMethodCount > 0 && (
+                            <MinusIcon
+                              aria-hidden="true"
+                              className="pointer-events-none absolute h-4 w-4 p-0.5 text-primary-foreground"
+                            />
+                          )}
+                        </span>
+                        <Trans>Select all</Trans>
+                      </label>
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      <Trans>Select individual contact options, or choose both.</Trans>
                     </p>
-
-                    <div>
-                      {recipients
-                        .filter(
-                          (recipient) =>
-                            recipient.signingStatus === SigningStatus.NOT_SIGNED && recipient.role !== RecipientRole.CC,
-                        )
-                        .map((recipient) => {
-                          const scheduledReminderAt = scheduledReminderDates[recipient.id];
-
-                          return (
-                            <FormItem key={recipient.id} className="space-y-2 px-3 py-2">
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0">
-                                  <FormLabel
-                                    className={cn('flex items-center gap-2 font-normal', {
-                                      'opacity-50': !value.includes(recipient.id),
-                                    })}
-                                  >
-                                    <StackAvatar
-                                      key={recipient.id}
-                                      type={getRecipientType(recipient)}
-                                      fallbackText={recipientAbbreviation(recipient)}
+                    {recipients.map((recipient) => {
+                      const key = `recipient_${recipient.id}`;
+                      const smsSelected = recipientChannels[key]?.sms ?? false;
+                      const phone = recipientPhones[key] ?? '';
+                      const scheduledReminderAt = scheduledReminderDates[recipient.id];
+                      return (
+                        <div key={recipient.id} className="space-y-3 pt-1">
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <StackAvatar
+                              type={getRecipientType(recipient)}
+                              fallbackText={recipientAbbreviation(recipient)}
+                            />
+                            <span className="min-w-0 break-all font-medium text-sm">
+                              {recipient.name || recipient.email}
+                            </span>
+                          </div>
+                          {scheduledReminderAt && (
+                            <div className="flex flex-wrap items-center gap-1.5 text-muted-foreground text-xs">
+                              <CalendarClockIcon aria-hidden="true" className="h-3.5 w-3.5" />
+                              <span>
+                                {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+                                  scheduledReminderAt,
+                                )}
+                                {` (${localTimeZone})`}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-1.5"
+                                disabled={isUpdatingReminderSchedule}
+                                onClick={() => void onCancelScheduledReminder(recipient.id)}
+                              >
+                                <XIcon aria-hidden="true" className="mr-1 h-3 w-3" />
+                                <Trans>Cancel schedule</Trans>
+                              </Button>
+                            </div>
+                          )}
+                          <div className="divide-y rounded-md border">
+                            <FormField
+                              control={form.control}
+                              name={`recipientChannels.${key}.email`}
+                              render={({ field: emailField }) => (
+                                <FormItem className="flex min-h-16 items-center gap-3 space-y-0 px-3 py-3">
+                                  <FormControl>
+                                    <Checkbox
+                                      aria-label={t`Email ${recipient.email}`}
+                                      checked={recipientChannels[key]?.email ?? false}
+                                      onCheckedChange={(checked) => emailField.onChange(checked === true)}
                                     />
-                                    <span className="truncate">{recipient.email}</span>
+                                  </FormControl>
+                                  <MailIcon aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                  <FormLabel className="min-w-0 flex-1 cursor-pointer font-normal">
+                                    <span className="block text-muted-foreground text-xs">
+                                      <Trans>Email</Trans>
+                                    </span>
+                                    <span className="block break-all text-sm">{recipient.email}</span>
                                   </FormLabel>
-
-                                  {scheduledReminderAt && (
-                                    <div className="mt-1 ml-10 flex items-center gap-1.5 text-muted-foreground text-xs">
-                                      <CalendarClockIcon className="h-3.5 w-3.5" />
-                                      <span>
-                                        {new Intl.DateTimeFormat(undefined, {
-                                          dateStyle: 'medium',
-                                          timeStyle: 'short',
-                                        }).format(scheduledReminderAt)}
-                                        {` (${localTimeZone})`}
-                                      </span>
+                                </FormItem>
+                              )}
+                            />
+                            <div className="flex min-h-16 items-start gap-3 px-3 py-3">
+                              <FormField
+                                control={form.control}
+                                name={`recipientChannels.${key}.sms`}
+                                render={({ field: smsField }) => (
+                                  <FormItem className="mt-2 space-y-0">
+                                    <FormControl>
+                                      <Checkbox
+                                        disabled={!smsAvailable}
+                                        id={`${formId}-sms-${recipient.id}`}
+                                        aria-label={t`Text message to ${recipient.email}`}
+                                        aria-controls={`${formId}-phone-${recipient.id}`}
+                                        aria-expanded={smsSelected}
+                                        checked={smsSelected}
+                                        onCheckedChange={(checked) => smsField.onChange(checked === true)}
+                                      />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                              <MessageSquareIcon
+                                aria-hidden="true"
+                                className="mt-2 h-4 w-4 shrink-0 text-muted-foreground"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <label
+                                  htmlFor={`${formId}-sms-${recipient.id}`}
+                                  className="block text-muted-foreground text-xs"
+                                >
+                                  <Trans>Text message (SMS)</Trans>
+                                </label>
+                                {smsSelected && (!phone || editingPhoneIds.includes(recipient.id)) ? (
+                                  <FormField
+                                    control={form.control}
+                                    name={`recipientPhones.${key}`}
+                                    render={({ field: phoneField }) => (
+                                      <FormItem className="mt-1">
+                                        <FormControl>
+                                          <Input
+                                            {...phoneField}
+                                            id={`${formId}-phone-${recipient.id}`}
+                                            aria-label={t`Mobile number for ${recipient.email}`}
+                                            value={phoneField.value ?? ''}
+                                            className="h-9"
+                                            type="tel"
+                                            inputMode="tel"
+                                            autoComplete="tel"
+                                            placeholder={t`Add mobile number`}
+                                            maxLength={30}
+                                            autoFocus={editingPhoneIds.includes(recipient.id)}
+                                            onChange={(event) => {
+                                              // Keep the initially empty editor mounted while the number is typed.
+                                              setEditingPhoneIds((ids) =>
+                                                ids.includes(recipient.id) ? ids : [...ids, recipient.id],
+                                              );
+                                              phoneField.onChange(event);
+                                            }}
+                                            onBlur={() => {
+                                              phoneField.onBlur();
+                                              if (normalisePhoneNumber(phoneField.value ?? '')) {
+                                                setEditingPhoneIds((ids) => ids.filter((id) => id !== recipient.id));
+                                              }
+                                            }}
+                                          />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                ) : (
+                                  <div className="flex items-center justify-between gap-2">
+                                    <label
+                                      className="min-w-0 break-all text-sm"
+                                      htmlFor={`${formId}-sms-${recipient.id}`}
+                                    >
+                                      {phone || t`Add a mobile number`}
+                                    </label>
+                                    {smsAvailable && (
                                       <Button
                                         type="button"
                                         variant="ghost"
                                         size="sm"
-                                        className="h-6 px-1.5"
-                                        disabled={isUpdatingReminderSchedule}
-                                        onClick={() => void onCancelScheduledReminder(recipient.id)}
+                                        className="h-7 w-7 shrink-0 p-0"
+                                        aria-label={t`Edit mobile number for ${recipient.email}`}
+                                        onClick={() => {
+                                          form.setValue(`recipientChannels.${key}.sms`, true, {
+                                            shouldDirty: true,
+                                            shouldValidate: form.formState.isSubmitted,
+                                          });
+                                          setEditingPhoneIds((ids) => [
+                                            ...ids.filter((id) => id !== recipient.id),
+                                            recipient.id,
+                                          ]);
+                                        }}
                                       >
-                                        <XIcon className="mr-1 h-3 w-3" />
-                                        <Trans>Cancel schedule</Trans>
+                                        <PencilIcon aria-hidden="true" className="h-3.5 w-3.5" />
                                       </Button>
-                                    </div>
-                                  )}
-                                </div>
-
-                                <FormControl>
-                                  <Checkbox
-                                    className="h-5 w-5 shrink-0"
-                                    aria-label={t`Send reminder to ${recipient.email}`}
-                                    value={recipient.id}
-                                    checked={value.includes(recipient.id)}
-                                    onCheckedChange={(checked: boolean) =>
-                                      checked
-                                        ? onChange([...value, recipient.id])
-                                        : onChange(value.filter((v) => v !== recipient.id))
-                                    }
-                                  />
-                                </FormControl>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-
-                              {value.includes(recipient.id) && (
-                                <FormField
-                                  control={form.control}
-                                  name={`recipientPhones.recipient_${recipient.id}`}
-                                  render={({ field }) => (
-                                    <FormItem className="pl-10">
-                                      <FormLabel className="text-xs">
-                                        <Trans>Mobile number (optional)</Trans>
-                                      </FormLabel>
-                                      <FormControl>
-                                        <Input
-                                          {...field}
-                                          value={field.value ?? ''}
-                                          type="tel"
-                                          onChange={(event) => {
-                                            field.onChange(event);
-                                            if (form.formState.isSubmitted) {
-                                              void form.trigger('smsEnabled');
-                                            }
-                                          }}
-                                          autoComplete="tel"
-                                          placeholder={t`e.g. (832) 555-0123`}
-                                          maxLength={30}
-                                        />
-                                      </FormControl>
-                                      <p className="text-muted-foreground text-xs">
-                                        {smsEnabled && normalisePhoneNumber(field.value ?? '') ? (
-                                          <Trans>Email + SMS to {normalisePhoneNumber(field.value ?? '')}</Trans>
-                                        ) : (
-                                          <Trans>
-                                            Email only. Add a mobile number and enable text messages for SMS.
-                                          </Trans>
-                                        )}
-                                      </p>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              )}
-                            </FormItem>
-                          );
-                        })}
-                    </div>
-
-                    <FormMessage className="px-3" aria-live="polite" />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="smsEnabled"
-                render={({ field }) => (
-                  <FormItem className="mt-4 flex flex-row items-start gap-2 space-y-0 rounded-md border p-3">
-                    <FormControl>
-                      <Checkbox
-                        disabled={!smsAvailable}
-                        checked={field.value}
-                        onCheckedChange={(checked) => field.onChange(checked === true)}
-                      />
-                    </FormControl>
-
-                    <div className="space-y-1">
-                      <FormLabel className="font-normal">
-                        <Trans>Also send a text message</Trans>
-                      </FormLabel>
-
-                      {!smsAvailable && (
-                        <p className="text-muted-foreground text-xs" role="status">
-                          <Trans>Text messages are off for this team. This reminder will use email only.</Trans>{' '}
-                          {currentTeam && (
-                            <Link
-                              className="font-medium text-primary underline underline-offset-4"
-                              to={`/t/${currentTeam.url}/settings/document`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Trans>Set up SMS</Trans>
-                            </Link>
-                          )}
-                        </p>
-                      )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {smsCount > 0 && (
                       <p className="text-muted-foreground text-xs">
-                        {smsEnabled && smsRecipientCount > 0 ? (
-                          plural(smsRecipientCount, {
-                            one: 'SMS enabled for # selected recipient. Others receive email only.',
-                            other: 'SMS enabled for # selected recipients. Others receive email only.',
-                          })
-                        ) : (
-                          <Trans>
-                            Add a mobile number under each selected recipient. Numbers are saved with this reminder.
-                          </Trans>
+                        <Trans>The number is saved for this document when you send or schedule.</Trans>
+                      </p>
+                    )}
+                    {!smsAvailable && (
+                      <p className="text-muted-foreground text-xs" role="status">
+                        <Trans>Text messages are off for this team.</Trans>{' '}
+                        {currentTeam && (
+                          <Link
+                            className="font-medium text-primary underline underline-offset-4"
+                            to={`/t/${currentTeam.url}/settings/document`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Trans>Set up SMS</Trans>
+                          </Link>
                         )}
                       </p>
-                      <FormMessage />
-                    </div>
+                    )}
+                    <p className="text-muted-foreground text-xs" aria-live="polite">
+                      {emailCount > 0 && smsCount > 0 ? (
+                        <Trans>Email and SMS selected.</Trans>
+                      ) : emailCount > 0 ? (
+                        <Trans>Email only.</Trans>
+                      ) : smsCount > 0 ? (
+                        <Trans>SMS only.</Trans>
+                      ) : (
+                        <Trans>No communication methods selected.</Trans>
+                      )}
+                    </p>
+                    <FormMessage aria-live="polite" />
                   </FormItem>
                 )}
               />
@@ -693,7 +772,7 @@ export const EnvelopeRedistributeDialog = ({ envelope, envelopeType, trigger }: 
                   </Button>
                 </DialogClose>
 
-                <Button loading={isBusy} type="submit">
+                <Button loading={isBusy} disabled={selectedMethodCount === 0} type="submit">
                   {isBusy ? (
                     delivery === 'scheduled' ? (
                       <Trans>Scheduling...</Trans>

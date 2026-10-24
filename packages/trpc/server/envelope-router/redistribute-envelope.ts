@@ -15,7 +15,7 @@ export const redistributeEnvelopeRoute = authenticatedProcedure
   .output(ZRedistributeEnvelopeResponseSchema)
   .mutation(async ({ input, ctx }) => {
     const { teamId } = ctx;
-    const { envelopeId, recipients, smsEnabled, recipientPhones } = input;
+    const { envelopeId, recipients, smsEnabled, recipientPhones, recipientChannels } = input;
 
     ctx.logger.info({
       input: {
@@ -26,7 +26,7 @@ export const redistributeEnvelopeRoute = authenticatedProcedure
 
     // Persisted before resending so the SMS enqueue inside resendDocument sees
     // the operator's choice for this send rather than the previous one.
-    if (smsEnabled !== undefined) {
+    if (!recipientChannels && smsEnabled !== undefined) {
       await updateDocumentMeta({
         userId: ctx.user.id,
         teamId,
@@ -45,6 +45,7 @@ export const redistributeEnvelopeRoute = authenticatedProcedure
       },
       recipients,
       recipientPhones,
+      recipientChannels,
       requestMetadata: ctx.metadata,
     });
 

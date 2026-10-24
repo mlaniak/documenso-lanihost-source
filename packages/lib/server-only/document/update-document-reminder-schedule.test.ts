@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  enqueuePush: vi.fn(),
   enqueue: vi.fn(),
+  smsContext: vi.fn(),
   updatePhones: vi.fn(),
   metaUpdate: vi.fn(),
   envelope: vi.fn(),
@@ -13,6 +15,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../envelope/get-envelope-by-id', () => ({
   getEnvelopeWhereInput: async () => ({ envelopeWhereInput: { id: 'env-1', teamId: 2 } }),
 }));
+vi.mock('../sms/get-envelope-sms-context', () => ({ getEnvelopeSmsContext: mocks.smsContext }));
+vi.mock('../notifications/document-notifications', () => ({ enqueueDocumentNotification: mocks.enqueuePush }));
 vi.mock('../sms/enqueue-sms-delivery', () => ({ enqueueSmsDelivery: mocks.enqueue }));
 vi.mock('../recipient/update-reminder-recipient-phones', () => ({ updateReminderRecipientPhones: mocks.updatePhones }));
 vi.mock('@documenso/lib/utils/document-audit-logs', () => ({ createDocumentAuditLogData: (data: unknown) => data }));
@@ -38,6 +42,8 @@ const base = { envelopeId: 'env-1', userId: 1, teamId: 2, recipients: [7], sched
 describe('scheduled reminder SMS selection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.enqueuePush.mockResolvedValue(undefined);
+    mocks.smsContext.mockResolvedValue({ enabled: true });
     mocks.envelope.mockResolvedValue({
       id: 'env-1',
       status: 'PENDING',
@@ -45,6 +51,7 @@ describe('scheduled reminder SMS selection', () => {
       recipients: [
         {
           id: 7,
+          phone: '+18325550123',
           email: 'recipient@example.com',
           name: 'Recipient',
           role: 'SIGNER',
@@ -84,5 +91,74 @@ describe('scheduled reminder SMS selection', () => {
     await expect(updateDocumentReminderSchedule({ ...base, smsEnabled: true })).rejects.toThrow('stale recipient');
     expect(mocks.enqueue).not.toHaveBeenCalled();
     expect(mocks.createDelivery).not.toHaveBeenCalled();
+  });
+  it.each([
+    [true, false, ['EMAIL']],
+    [false, true, ['SMS']],
+    [true, true, ['EMAIL', 'SMS']],
+  ])('creates only explicitly selected channels (email=%s, sms=%s)', async (email, sms, expected) => {
+    await updateDocumentReminderSchedule({
+      ...base,
+      recipientChannels: [{ id: 7, email: email as boolean, sms: sms as boolean }],
+    });
+    expect(mocks.createDelivery.mock.calls.map(([input]) => input.data.channel)).toEqual(expected);
+    expect(mocks.metaUpdate).not.toHaveBeenCalled();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+    for (const [input] of mocks.createDelivery.mock.calls) {
+      expect(input.data.smsEnabledOverride).toBe(input.data.channel === 'SMS' ? true : undefined);
+    }
+  });
+  it('keeps email and SMS sequence identities separate', async () => {
+    await updateDocumentReminderSchedule({
+      ...base,
+      total: 2,
+      intervalDays: 3,
+      recipientChannels: [{ id: 7, email: true, sms: true }],
+    });
+    const rows = mocks.createDelivery.mock.calls.map(([input]) => input.data);
+    expect(rows).toHaveLength(4);
+    expect(new Set(rows.filter((row) => row.channel === 'EMAIL').map((row) => row.sequenceId)).size).toBe(1);
+    expect(rows.find((row) => row.channel === 'EMAIL').sequenceId).not.toBe(
+      rows.find((row) => row.channel === 'SMS').sequenceId,
+    );
+    expect(rows.every((row) => row.sequenceTotal === 2)).toBe(true);
+  });
+  it('rejects SMS when the team has disabled it before saving anything', async () => {
+    mocks.smsContext.mockResolvedValue({ enabled: false });
+    await expect(
+      updateDocumentReminderSchedule({ ...base, recipientChannels: [{ id: 7, email: false, sms: true }] }),
+    ).rejects.toThrow('unavailable');
+    expect(mocks.updatePhones).not.toHaveBeenCalled();
+    expect(mocks.createDelivery).not.toHaveBeenCalled();
+  });
+  it.each([
+    [true, false],
+    [false, true],
+    [true, true],
+  ])('preserves one signer push per scheduled occurrence for email=%s, SMS=%s', async (email, sms) => {
+    await updateDocumentReminderSchedule({
+      ...base,
+      total: 2,
+      intervalDays: 3,
+      recipientChannels: [{ id: 7, email, sms }],
+    });
+    expect(mocks.enqueuePush).toHaveBeenCalledTimes(2);
+    expect(mocks.enqueuePush).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: 7,
+        audience: 'SIGNER',
+        event: 'REMINDER',
+        scheduledAt,
+        occurrence: scheduledAt.toISOString(),
+      }),
+    );
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+  it('does not enqueue signer push if the schedule transaction fails', async () => {
+    mocks.updatePhones.mockRejectedValueOnce(new Error('stale phone'));
+    await expect(
+      updateDocumentReminderSchedule({ ...base, recipientChannels: [{ id: 7, email: true, sms: false }] }),
+    ).rejects.toThrow('stale phone');
+    expect(mocks.enqueuePush).not.toHaveBeenCalled();
   });
 });

@@ -124,7 +124,7 @@ export const processScheduledReminderDelivery = async (options: { deliveryId: st
           title: delivery.envelope.title,
           teamId: delivery.envelope.teamId,
         },
-        documentSmsEnabled: delivery.envelope.documentMeta?.smsEnabled ?? null,
+        documentSmsEnabled: delivery.smsEnabledOverride ?? delivery.envelope.documentMeta?.smsEnabled ?? null,
       });
 
       if (result.status !== 'sent') {
@@ -196,8 +196,7 @@ export const processScheduledReminderDelivery = async (options: { deliveryId: st
         where: {
           recipientId: delivery.recipientId,
           status: ScheduledReminderDeliveryStatus.PENDING,
-          scheduledAt: { gt: delivery.scheduledAt },
-          ...(delivery.sequenceId ? { sequenceId: delivery.sequenceId } : {}),
+          kind: 'REMINDER',
         },
         orderBy: { scheduledAt: 'asc' },
       });
@@ -359,13 +358,17 @@ const recordDeliveryFailure = async (options: {
         });
       }
 
+      const nextDelivery = await tx.scheduledReminderDelivery.findFirst({
+        where: { recipientId: delivery.recipientId, kind: 'REMINDER', status: ScheduledReminderDeliveryStatus.PENDING },
+        orderBy: { scheduledAt: 'asc' },
+      });
       await tx.recipient.updateMany({
         where: { id: delivery.recipientId, scheduledReminderAt: delivery.scheduledAt },
         data: {
-          scheduledReminderAt: null,
-          scheduledReminderCreatedAt: null,
-          scheduledReminderCreatedBy: null,
-          nextReminderAt: null,
+          scheduledReminderAt: nextDelivery?.scheduledAt ?? null,
+          scheduledReminderCreatedAt: nextDelivery ? nextDelivery.createdAt : null,
+          scheduledReminderCreatedBy: nextDelivery ? nextDelivery.createdById : null,
+          nextReminderAt: nextDelivery?.scheduledAt ?? null,
         },
       });
 

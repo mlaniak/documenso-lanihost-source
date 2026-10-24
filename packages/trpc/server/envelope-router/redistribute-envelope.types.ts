@@ -1,4 +1,5 @@
 import { ZReminderRecipientPhonesSchema } from '@documenso/lib/types/recipient-phone';
+import { ZReminderRecipientChannelsSchema } from '@documenso/lib/types/reminder-recipient-channels';
 import { z } from 'zod';
 
 import { ZSuccessResponseSchema } from '../schema';
@@ -19,6 +20,7 @@ export const redistributeEnvelopeMeta: TrpcRouteMeta = {
 export const ZRedistributeEnvelopeRequestSchema = z.object({
   envelopeId: z.string(),
   recipientPhones: ZReminderRecipientPhonesSchema.optional(),
+  recipientChannels: ZReminderRecipientChannelsSchema.optional(),
   recipients: z.array(z.number()).min(1).describe('The IDs of the recipients to redistribute the envelope to.'),
   smsEnabled: z
     .boolean()

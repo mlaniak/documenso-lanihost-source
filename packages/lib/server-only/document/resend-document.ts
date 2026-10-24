@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-
 import { DocumentInviteEmailTemplate } from '@documenso/email/templates/document-invite';
 import { resolveExpiresAt } from '@documenso/lib/constants/envelope-expiration';
 import { RECIPIENT_ROLE_TO_EMAIL_TYPE, RECIPIENT_ROLES_DESCRIPTION } from '@documenso/lib/constants/recipient-roles';
@@ -24,6 +23,7 @@ import { getI18nInstance } from '../../client-only/providers/i18n-server';
 import { NEXT_PUBLIC_WEBAPP_URL } from '../../constants/app';
 import { extractDerivedDocumentEmailSettings } from '../../types/document-email';
 import type { TReminderRecipientPhone } from '../../types/recipient-phone';
+import type { TReminderRecipientChannels } from '../../types/reminder-recipient-channels';
 import { mapEnvelopeToWebhookDocumentPayload, ZWebhookDocumentSchema } from '../../types/webhook-payload';
 import { isDocumentCompleted } from '../../utils/document';
 import type { EnvelopeIdOptions } from '../../utils/envelope';
@@ -32,10 +32,13 @@ import { renderEmailWithI18N } from '../../utils/render-email-with-i18n';
 import { buildEnvelopeEmailHeaders } from '../email/build-envelope-email-headers';
 import { getEmailContext } from '../email/get-email-context';
 import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';
+import { enqueueDocumentNotification } from '../notifications/document-notifications';
 import { assertOrganisationRatesAndLimits } from '../rate-limit/assert-organisation-rates-and-limits';
 import { updateRecipientNextReminder } from '../recipient/update-recipient-next-reminder';
 import { updateReminderRecipientPhones } from '../recipient/update-reminder-recipient-phones';
+import { validateReminderRecipientChannels } from '../recipient/validate-reminder-recipient-channels';
 import { enqueueSmsDelivery } from '../sms/enqueue-sms-delivery';
+import { getEnvelopeSmsContext } from '../sms/get-envelope-sms-context';
 import { assertUserNotDisabled } from '../user/assert-user-not-disabled';
 import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
 
@@ -47,6 +50,7 @@ export type ResendDocumentOptions = {
   requestMetadata: ApiRequestMetadata;
   requireEmailDelivery?: boolean;
   recipientPhones?: TReminderRecipientPhone[];
+  recipientChannels?: TReminderRecipientChannels;
   emailDeliveryTracking?: {
     messageId: string;
     idempotencyKey: string;
@@ -61,6 +65,7 @@ export const resendDocument = async ({
   requestMetadata,
   requireEmailDelivery = false,
   recipientPhones,
+  recipientChannels,
   emailDeliveryTracking,
 }: ResendDocumentOptions) => {
   const user = await prisma.user.findFirstOrThrow({
@@ -147,16 +152,73 @@ export const resendDocument = async ({
       recipient.role !== RecipientRole.CC,
   );
 
-  if (recipientPhones?.length) {
-    await prisma.$transaction((tx) =>
-      updateReminderRecipientPhones({
-        tx,
-        envelopeId: envelope.id,
-        eligibleRecipientIds: recipientsToRemind.map((recipient) => recipient.id),
+  const channels = recipientChannels
+    ? validateReminderRecipientChannels({
+        recipientIds: recipients,
+        eligibleRecipients: recipientsToRemind,
+        recipientChannels,
         recipientPhones,
-      }),
-    );
+      })
+    : null;
+  const emailRecipientsToRemind = channels
+    ? recipientsToRemind.filter((recipient) => channels.get(recipient.id)?.email)
+    : recipientsToRemind;
+  const smsRecipientsToRemind = channels
+    ? recipientsToRemind.filter((recipient) => channels.get(recipient.id)?.sms)
+    : [];
+
+  if (
+    smsRecipientsToRemind.length > 0 &&
+    !(await getEnvelopeSmsContext({ teamId, documentSmsEnabled: true })).enabled
+  ) {
+    throw new AppError(AppErrorCode.INVALID_REQUEST, { message: 'Text messages are unavailable for this team.' });
   }
+
+  const savePhonesAndQueueNotifications = async () => {
+    if (recipientPhones?.length || smsRecipientsToRemind.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        await updateReminderRecipientPhones({
+          tx,
+          envelopeId: envelope.id,
+          eligibleRecipientIds: recipientsToRemind.map((recipient) => recipient.id),
+          recipientPhones,
+        });
+        // Queue only explicitly checked SMS rows, atomically with their phone edits.
+        // The worker still enforces the team's switch, opt-outs, and daily quota.
+        const scheduledAt = new Date();
+        for (const recipient of smsRecipientsToRemind) {
+          await tx.scheduledReminderDelivery.create({
+            data: {
+              envelopeId: envelope.id,
+              recipientId: recipient.id,
+              createdById: userId,
+              channel: 'SMS',
+              kind: 'REMINDER',
+              smsEnabledOverride: true,
+              scheduledAt,
+              nextAttemptAt: scheduledAt,
+            },
+          });
+        }
+      });
+    }
+    if (channels) {
+      await Promise.all(
+        recipientsToRemind.map((recipient) =>
+          enqueueDocumentNotification({
+            envelopeId: envelope.id,
+            teamId,
+            recipientId: recipient.id,
+            audience: 'SIGNER',
+            event: 'SIGNING_REQUEST',
+            occurrence: notificationOccurrence,
+          }).catch(() => {
+            console.error('Could not queue signer push notification');
+          }),
+        ),
+      );
+    }
+  };
 
   if (requireEmailDelivery && recipientsToRemind.length !== recipients.length) {
     throw new AppError(AppErrorCode.INVALID_REQUEST, {
@@ -172,7 +234,10 @@ export const resendDocument = async ({
     });
   }
 
-  if (requireEmailDelivery && recipientsToRemind.some((recipient) => !isRecipientEmailValidForSending(recipient))) {
+  if (
+    (requireEmailDelivery || channels) &&
+    emailRecipientsToRemind.some((recipient) => !isRecipientEmailValidForSending(recipient))
+  ) {
     throw new AppError(AppErrorCode.INVALID_REQUEST, {
       message: 'The scheduled reminder recipient does not have a deliverable email address',
       statusCode: 400,
@@ -210,12 +275,17 @@ export const resendDocument = async ({
     ),
   );
 
+  if (emailRecipientsToRemind.length === 0) {
+    await savePhonesAndQueueNotifications();
+    return envelope;
+  }
+
   const isRecipientSigningRequestEmailEnabled = extractDerivedDocumentEmailSettings(
     envelope.documentMeta,
   ).recipientSigningRequest;
 
   if (!isRecipientSigningRequestEmailEnabled) {
-    if (requireEmailDelivery) {
+    if (requireEmailDelivery || channels) {
       throw new AppError(AppErrorCode.INVALID_REQUEST, {
         message: 'Signing request emails are disabled for this document',
         statusCode: 409,
@@ -246,7 +316,7 @@ export const resendDocument = async ({
 
   // Don't resend any emails if the organisation has email sending disabled.
   if (user.disabled || emailsDisabled) {
-    if (requireEmailDelivery) {
+    if (requireEmailDelivery || channels) {
       throw new AppError(AppErrorCode.INVALID_REQUEST, {
         message: 'Email delivery is disabled for this document owner or organisation',
         statusCode: 409,
@@ -260,12 +330,14 @@ export const resendDocument = async ({
   await assertOrganisationRatesAndLimits({
     organisationId,
     organisationClaim: claims,
-    count: recipientsToRemind.length,
+    count: emailRecipientsToRemind.length,
     type: 'email',
   });
 
+  await savePhonesAndQueueNotifications();
+
   await Promise.all(
-    recipientsToRemind.map(async (recipient) => {
+    emailRecipientsToRemind.map(async (recipient) => {
       if (recipient.role === RecipientRole.CC || !isRecipientEmailValidForSending(recipient)) {
         return;
       }
@@ -273,7 +345,7 @@ export const resendDocument = async ({
       // emailDeliveryTracking is only supplied by the reminder worker, which
       // already has its own SMS row. Without this gate every email reminder
       // would queue a duplicate text.
-      if (!emailDeliveryTracking) {
+      if (!emailDeliveryTracking && !channels) {
         await enqueueSmsDelivery({
           envelopeId: envelope.id,
           recipientId: recipient.id,

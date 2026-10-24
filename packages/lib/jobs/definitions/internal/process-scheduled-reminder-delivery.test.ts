@@ -109,6 +109,37 @@ describe('processScheduledReminderDelivery', () => {
     expect(resendDocument).not.toHaveBeenCalled();
   });
 
+  it('retains an explicit SMS choice even when the document default is email only', async () => {
+    const delivery = buildDelivery({ smsEnabledOverride: true });
+    delivery.envelope.documentMeta.smsEnabled = false as never;
+    findUniqueOrThrow.mockResolvedValue(delivery);
+    await processScheduledReminderDelivery({ deliveryId: 'delivery-1', io });
+    expect(deliverSmsForDelivery).toHaveBeenCalledWith(expect.objectContaining({ documentSmsEnabled: true }));
+    expect(resendDocument).not.toHaveBeenCalled();
+  });
+
+  it('keeps the next pending reminder across channels after a successful delivery', async () => {
+    findUniqueOrThrow.mockResolvedValue(buildDelivery());
+    await processScheduledReminderDelivery({ deliveryId: 'delivery-1', io });
+    expect(txFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { recipientId: 5, kind: 'REMINDER', status: 'PENDING' } }),
+    );
+  });
+
+  it('keeps the other channel scheduled after one channel fails', async () => {
+    findUniqueOrThrow.mockResolvedValue(buildDelivery({ sequenceId: 'sms-sequence', kind: 'REMINDER' }));
+    deliverSmsForDelivery.mockResolvedValue({ status: 'suppressed' });
+    const nextEmail = { scheduledAt: new Date('2035-01-01T15:00:00Z'), createdAt: new Date(), createdById: 2 };
+    txFindFirst.mockResolvedValue(nextEmail);
+    await processScheduledReminderDelivery({ deliveryId: 'delivery-1', io });
+    expect(txUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ sequenceId: 'sms-sequence' }) }),
+    );
+    expect(txRecipientUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ scheduledReminderAt: nextEmail.scheduledAt }) }),
+    );
+  });
+
   it('stamps the twilio sid onto the row after a successful send', async () => {
     findUniqueOrThrow.mockResolvedValue(buildDelivery());
 
