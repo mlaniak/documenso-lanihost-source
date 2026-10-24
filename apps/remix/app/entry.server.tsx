@@ -61,10 +61,7 @@ export default async function handleRequest(
           // Cloudflare JavaScript Detections also honors this directive.
           if (new URL(request.url).pathname.startsWith('/sign/')) {
             const cacheControl = responseHeaders.get('Cache-Control');
-            responseHeaders.set(
-              'Cache-Control',
-              cacheControl ? `${cacheControl}, no-transform` : 'no-transform',
-            );
+            responseHeaders.set('Cache-Control', cacheControl ? `${cacheControl}, no-transform` : 'no-transform');
           }
 
           resolve(
