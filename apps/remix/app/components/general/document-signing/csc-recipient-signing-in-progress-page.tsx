@@ -69,7 +69,7 @@ export const CscRecipientSigningInProgressPage = ({
             <Trans>Signing failed</Trans>
           </h2>
 
-          <p className="mt-2.5 max-w-[60ch] text-center font-medium text-muted-foreground/60 text-sm md:text-base">
+          <p className="mt-2.5 max-w-[60ch] text-center font-medium text-muted-foreground text-sm md:text-base">
             {error === AppErrorCode.CSC_TSP_TIMEOUT ? (
               <Trans>The signing provider did not respond in time. Please retry.</Trans>
             ) : error === AppErrorCode.CSC_SAD_EXPIRED_PRE_SIGN ? (
@@ -95,7 +95,7 @@ export const CscRecipientSigningInProgressPage = ({
             <Trans>Applying your signature</Trans>
           </h2>
 
-          <p className="mt-2.5 max-w-[60ch] text-center font-medium text-muted-foreground/60 text-sm md:text-base">
+          <p className="mt-2.5 max-w-[60ch] text-center font-medium text-muted-foreground text-sm md:text-base">
             <Trans>Please don't close this tab. The signing provider is finalising your signature.</Trans>
           </p>
         </>

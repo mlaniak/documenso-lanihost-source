@@ -3,6 +3,7 @@ import { SessionProvider } from '@documenso/lib/client-only/providers/session';
 import { APP_I18N_OPTIONS, type SupportedLanguageCodes } from '@documenso/lib/constants/i18n';
 import { createPublicEnv } from '@documenso/lib/utils/env';
 import { extractLocaleData } from '@documenso/lib/utils/i18n';
+import { getRecipientTheme } from '@documenso/lib/utils/recipient-theme';
 import { TrpcProvider } from '@documenso/trpc/react';
 import { getOrganisationSession } from '@documenso/trpc/server/organisation-router/get-organisation-session';
 import { Toaster } from '@documenso/ui/primitives/toaster';
@@ -119,9 +120,13 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
   // route tree, attached directly to document.body).
   const matches = useMatches();
   const isRecipientRoute = matches.some((m) => m.id?.startsWith('routes/_recipient+'));
+  // A partial light brand must not inherit dark muted text, cards, dialogs or
+  // signature inversion. This is route-local; the saved account theme is kept.
+  const recipientTheme = getRecipientTheme(matches);
+  const renderedTheme = recipientTheme ?? theme;
 
   return (
-    <html translate="no" lang={lang} data-theme={theme} className={theme ?? ''}>
+    <html translate="no" lang={lang} data-theme={renderedTheme} className={renderedTheme ?? ''}>
       <head>
         <meta charSet="utf-8" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
@@ -133,7 +138,11 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links nonce={nonce(cspNonce)} />
         <meta name="google" content="notranslate" />
-        <PreventFlashOnWrongTheme ssrTheme={Boolean(data.theme)} nonce={nonce(cspNonce)} />
+        {recipientTheme ? (
+          <meta name="color-scheme" content={recipientTheme} />
+        ) : (
+          <PreventFlashOnWrongTheme ssrTheme={Boolean(data.theme)} nonce={nonce(cspNonce)} />
+        )}
 
         {disableAnimations && (
           <style

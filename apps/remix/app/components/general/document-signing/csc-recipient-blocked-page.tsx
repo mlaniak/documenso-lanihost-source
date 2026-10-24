@@ -37,7 +37,7 @@ export const CscRecipientBlockedPage = ({ code, recipientToken }: CscRecipientBl
         )}
       </h2>
 
-      <p className="mt-2.5 max-w-[60ch] text-center font-medium text-muted-foreground/60 text-sm md:text-base">
+      <p className="mt-2.5 max-w-[60ch] text-center font-medium text-muted-foreground text-sm md:text-base">
         {code === AppErrorCode.CSC_CREDENTIAL_LIST_EMPTY ? (
           <Trans>
             Your signing provider returned no usable credentials for this account. Contact your administrator or signing

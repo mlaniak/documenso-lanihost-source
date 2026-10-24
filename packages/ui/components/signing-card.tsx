@@ -159,7 +159,7 @@ const SigningCardContent = ({ className, name, signature }: SigningCardContentPr
           ))
           .with({ typedSignature: P.string }, (signature) => (
             <span
-              className="break-all font-semibold text-muted-foreground/60 duration-300 group-hover:text-primary/80"
+              className="break-all font-semibold text-foreground"
               style={{
                 fontSize: `max(min(4rem, ${(100 / signature.typedSignature.length / 2).toFixed(4)}cqw), 1.875rem)`,
               }}
@@ -169,7 +169,7 @@ const SigningCardContent = ({ className, name, signature }: SigningCardContentPr
           ))
           .otherwise(() => (
             <span
-              className="break-all font-semibold text-muted-foreground/60 duration-300 group-hover:text-primary/80"
+              className="break-all font-semibold text-foreground"
               style={{
                 fontSize: `max(min(4rem, ${(100 / name.length / 2).toFixed(4)}cqw), 1.875rem)`,
               }}

@@ -442,7 +442,7 @@ const SigningPageV1 = ({ data }: { data: Awaited<ReturnType<typeof handleV1Loade
             </Trans>
           </h2>
 
-          <p className="mt-2.5 max-w-[60ch] text-center font-medium text-muted-foreground/60 text-sm md:text-base">
+          <p className="mt-2.5 max-w-[60ch] text-center font-medium text-muted-foreground text-sm md:text-base">
             <Trans>This document has been cancelled by the owner.</Trans>
           </p>
 
@@ -451,7 +451,7 @@ const SigningPageV1 = ({ data }: { data: Awaited<ReturnType<typeof handleV1Loade
               <Trans>Go Back Home</Trans>
             </Link>
           ) : (
-            <p className="mt-36 text-muted-foreground/60 text-sm">
+            <p className="mt-36 text-muted-foreground text-sm">
               <Trans>
                 Want to send slick signing links like this one?{' '}
                 <Link to="https://documenso.com" className="text-documenso-700 hover:text-documenso-600">
@@ -541,7 +541,7 @@ const SigningPageV2 = ({ data }: { data: Awaited<ReturnType<typeof handleV2Loade
             </Trans>
           </h2>
 
-          <p className="mt-2.5 max-w-[60ch] text-center font-medium text-muted-foreground/60 text-sm md:text-base">
+          <p className="mt-2.5 max-w-[60ch] text-center font-medium text-muted-foreground text-sm md:text-base">
             <Trans>This document has been cancelled by the owner.</Trans>
           </p>
 
@@ -550,7 +550,7 @@ const SigningPageV2 = ({ data }: { data: Awaited<ReturnType<typeof handleV2Loade
               <Trans>Go Back Home</Trans>
             </Link>
           ) : (
-            <p className="mt-36 text-muted-foreground/60 text-sm">
+            <p className="mt-36 text-muted-foreground text-sm">
               <Trans>
                 Want to send slick signing links like this one?{' '}
                 <Link to="https://documenso.com" className="text-documenso-700 hover:text-documenso-600">
