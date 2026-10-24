@@ -57,6 +57,13 @@ export default async function handleRequest(
 
           responseHeaders.set('Content-Type', 'text/html');
 
+          // Prevent intermediary HTML injection on signing and confirmation pages.
+          // Cloudflare JavaScript Detections also honors this directive.
+          if (new URL(request.url).pathname.startsWith('/sign/')) {
+            const cacheControl = responseHeaders.get('Cache-Control');
+            responseHeaders.set('Cache-Control', cacheControl ? `${cacheControl}, no-transform` : 'no-transform');
+          }
+
           resolve(
             new Response(stream, {
               headers: responseHeaders,
