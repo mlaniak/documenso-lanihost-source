@@ -79,7 +79,7 @@
     "superjson": "^2.2.5",
     "syncpack": "^14.0.0-alpha.27",
     "turbo": "^1.13.4",
-    "vite": "^7.2.4",
+    "vite": "^7.3.7",
     "vite-plugin-static-copy": "^3.1.4",
     "zod-openapi": "^4.2.4",
     "zod-prisma-types": "3.3.5"
