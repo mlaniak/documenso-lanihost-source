@@ -734,6 +734,8 @@ model ScheduledReminderDelivery {
 
   status           ScheduledReminderDeliveryStatus @default(PENDING)
   channel          NotificationChannel             @default(EMAIL)
+  // Explicit manual SMS selection; null preserves legacy document defaults.
+  smsEnabledOverride Boolean?
   kind             ScheduledReminderDeliveryKind   @default(REMINDER)
   scheduledAt      DateTime
   nextAttemptAt    DateTime

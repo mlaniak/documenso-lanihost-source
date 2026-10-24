@@ -1,4 +1,5 @@
 import { ZReminderRecipientPhonesSchema } from '@documenso/lib/types/recipient-phone';
+import { ZReminderRecipientChannelsSchema } from '@documenso/lib/types/reminder-recipient-channels';
 import { z } from 'zod';
 
 import { ZSuccessResponseSchema } from '../schema';
@@ -17,6 +18,7 @@ export const updateReminderScheduleMeta: TrpcRouteMeta = {
 export const ZUpdateReminderScheduleRequestSchema = z.object({
   envelopeId: z.string(),
   recipientPhones: ZReminderRecipientPhonesSchema.optional(),
+  recipientChannels: ZReminderRecipientChannelsSchema.optional(),
   smsEnabled: z.boolean().optional(),
   recipients: z.array(z.number()).min(1),
   scheduledAt: z.date().nullable(),

@@ -14976,3 +14976,195 @@ msgstr "Signer push notifications"
 #: packages/ui/components/document/notification-settings-picker.tsx
 msgid "Staff mobile {0}"
 msgstr "Staff mobile {0}"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "{total} reminders will start {formattedScheduledAt} ({localTimeZone})."
+msgstr "{total} reminders will start {formattedScheduledAt} ({localTimeZone})."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "A reminder sequence needs at least two reminders"
+msgstr "A reminder sequence needs at least two reminders"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Add a mobile number"
+msgstr "Add a mobile number"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Add mobile number"
+msgstr "Add mobile number"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Cancel schedule"
+msgstr "Cancel schedule"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Choose a future date and time"
+msgstr "Choose a future date and time"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Choose how to contact each recipient, then send now or schedule for later."
+msgstr "Choose how to contact each recipient, then send now or schedule for later."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Communication methods"
+msgstr "Communication methods"
+
+#. placeholder {0}: recipient.email
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Edit mobile number for {0}"
+msgstr "Edit mobile number for {0}"
+
+#. placeholder {0}: recipient.email
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Email {0}"
+msgstr "Email {0}"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Email and SMS selected."
+msgstr "Email and SMS selected."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Email only."
+msgstr "Email only."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Enter a valid mobile number. Include a country code outside the US or Canada."
+msgstr "Enter a valid mobile number. Include a country code outside the US or Canada."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+#: apps/remix/app/routes/_authenticated+/t.$teamUrl+/reminders._index.tsx
+msgid "First reminder"
+msgstr "First reminder"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Maximum 5 reminders. Delivery runs every 5 minutes."
+msgstr "Maximum 5 reminders. Delivery runs every 5 minutes."
+
+#. placeholder {0}: recipient.email
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Mobile number for {0}"
+msgstr "Mobile number for {0}"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Next deliveries"
+msgstr "Next deliveries"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "No communication methods selected."
+msgstr "No communication methods selected."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+#: apps/remix/app/routes/_authenticated+/t.$teamUrl+/reminders._index.tsx
+msgid "One reminder"
+msgstr "One reminder"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+#: apps/remix/app/components/general/document/document-page-view-recipients.tsx
+#: apps/remix/app/components/tables/documents-table.tsx
+msgid "Reminder scheduled"
+msgstr "Reminder scheduled"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Reminder sequence"
+msgstr "Reminder sequence"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Reminder sequence scheduled"
+msgstr "Reminder sequence scheduled"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Reminder set for {formattedScheduledAt} ({localTimeZone})."
+msgstr "Reminder set for {formattedScheduledAt} ({localTimeZone})."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Reminder submitted"
+msgstr "Reminder submitted"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Reminders stop automatically when the recipient signs or the document completes, expires, or is cancelled."
+msgstr "Reminders stop automatically when the recipient signs or the document completes, expires, or is cancelled."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+#: apps/remix/app/routes/_authenticated+/t.$teamUrl+/reminders._index.tsx
+msgid "Repeat every (days)"
+msgstr "Repeat every (days)"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Saving reminder schedule..."
+msgstr "Saving reminder schedule..."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Schedule for later"
+msgstr "Schedule for later"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Schedule reminder"
+msgstr "Schedule reminder"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Scheduled reminder cancelled"
+msgstr "Scheduled reminder cancelled"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Scheduling..."
+msgstr "Scheduling..."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Select at least one communication method."
+msgstr "Select at least one communication method."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Select individual contact options, or choose both."
+msgstr "Select individual contact options, or choose both."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Send reminder now"
+msgstr "Send reminder now"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Sending reminder..."
+msgstr "Sending reminder..."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Set up SMS"
+msgstr "Set up SMS"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "SMS only."
+msgstr "SMS only."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Text message (SMS)"
+msgstr "Text message (SMS)"
+
+#. placeholder {0}: recipient.email
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Text message to {0}"
+msgstr "Text message to {0}"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Text messages are off for this team."
+msgstr "Text messages are off for this team."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "The number is saved for this document when you send or schedule."
+msgstr "The number is saved for this document when you send or schedule."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "The recipient will not receive the remaining scheduled reminders."
+msgstr "The recipient will not receive the remaining scheduled reminders."
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+#: apps/remix/app/routes/_authenticated+/t.$teamUrl+/reminders._index.tsx
+msgid "Timezone"
+msgstr "Timezone"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+#: apps/remix/app/routes/_authenticated+/t.$teamUrl+/reminders._index.tsx
+msgid "Total reminders"
+msgstr "Total reminders"
+
+#: apps/remix/app/components/dialogs/envelope-redistribute-dialog.tsx
+msgid "Your selected communication methods have been submitted. Check reminder activity for delivery status."
+msgstr "Your selected communication methods have been submitted. Check reminder activity for delivery status."
