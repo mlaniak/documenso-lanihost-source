@@ -112,7 +112,10 @@ export default function DocumentPage({ params }: Route.ComponentProps) {
         <DocumentRecipientLinkCopyDialog recipients={envelope.recipients} />
       )}
 
-      <Link to={documentRootPath} className="flex items-center text-documenso-700 hover:opacity-80">
+      <Link
+        to={documentRootPath}
+        className="flex items-center text-documenso-900 underline-offset-2 hover:underline dark:text-documenso-400"
+      >
         <ChevronLeft className="mr-2 inline-block h-5 w-5" />
         <Trans>Documents</Trans>
       </Link>

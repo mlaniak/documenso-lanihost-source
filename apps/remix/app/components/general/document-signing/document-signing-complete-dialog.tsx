@@ -207,13 +207,13 @@ export const DocumentSigningCompleteDialog = ({
         </Button>
       </DialogTrigger>
 
-      <DialogContent position={position}>
+      <DialogContent position={position} className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             <Trans>Are you sure?</Trans>
           </DialogTitle>
-          <DialogDescription>
-            <div className="max-w-[50ch] text-muted-foreground">
+          <DialogDescription className="text-base leading-relaxed">
+            <span className="inline-block max-w-[50ch]">
               {match(recipient.role)
                 .with(RecipientRole.VIEWER, () => (
                   <span className="inline-flex flex-wrap">
@@ -237,12 +237,12 @@ export const DocumentSigningCompleteDialog = ({
                 ))
                 .with(RecipientRole.CC, () => null)
                 .exhaustive()}
-            </div>
+            </span>
           </DialogDescription>
         </DialogHeader>
 
         <div className="rounded-lg border border-border bg-muted/50 p-4 text-center">
-          <p className="font-medium text-muted-foreground text-sm">{documentTitle}</p>
+          <p className="break-words font-medium text-base text-foreground leading-relaxed">{documentTitle}</p>
         </div>
 
         {!showTwoFactorForm && (

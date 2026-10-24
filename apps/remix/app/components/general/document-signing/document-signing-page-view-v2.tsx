@@ -285,7 +285,7 @@ export const DocumentSigningPageViewV2 = () => {
                 <a
                   href="https://documenso.com"
                   target="_blank"
-                  className="fixed right-0 bottom-0 z-40 hidden cursor-pointer rounded-tl bg-primary px-2 py-1 font-medium text-primary-foreground text-xs opacity-60 hover:opacity-100 lg:block"
+                  className="fixed right-0 bottom-0 z-40 hidden cursor-pointer rounded-tl bg-primary px-2 py-1 font-medium text-primary-foreground text-xs lg:block"
                   rel="noopener"
                 >
                   <span>

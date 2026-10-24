@@ -8,7 +8,7 @@ export type DocumentSigningDisclosureProps = HTMLAttributes<HTMLParagraphElement
 
 export const DocumentSigningDisclosure = ({ className, ...props }: DocumentSigningDisclosureProps) => {
   return (
-    <p className={cn('text-muted-foreground text-xs', className)} {...props}>
+    <p className={cn('text-foreground text-sm leading-relaxed', className)} {...props}>
       <Trans>
         By proceeding with your electronic signature, you acknowledge and consent that it will be used to sign the given
         document and holds the same legal validity as a handwritten signature. By completing the electronic signing
@@ -17,7 +17,11 @@ export const DocumentSigningDisclosure = ({ className, ...props }: DocumentSigni
       <span className="mt-2 block">
         <Trans>
           Read the full{' '}
-          <Link className="text-documenso-700 underline" to="/articles/signature-disclosure" target="_blank">
+          <Link
+            className="font-medium text-documenso-900 underline underline-offset-2 dark:text-documenso-400"
+            to="/articles/signature-disclosure"
+            target="_blank"
+          >
             signature disclosure
           </Link>
           .

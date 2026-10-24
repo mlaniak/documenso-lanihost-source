@@ -100,7 +100,7 @@ export const DocumentPageViewRecipients = ({ envelope, documentRootPath }: Docum
               avatarFallback={recipient.email.slice(0, 1).toUpperCase()}
               primaryText={<p className="text-muted-foreground text-sm">{recipient.email}</p>}
               secondaryText={
-                <p className="text-muted-foreground/70 text-xs">
+                <p className="text-muted-foreground text-xs">
                   {_(RECIPIENT_ROLES_DESCRIPTION[recipient.role].roleName)}
                 </p>
               }
