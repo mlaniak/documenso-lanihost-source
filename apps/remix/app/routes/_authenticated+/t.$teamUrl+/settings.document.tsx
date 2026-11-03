@@ -1,3 +1,4 @@
+import { useCurrentOrganisation } from '@documenso/lib/client-only/providers/organisation';
 import { IS_AI_FEATURES_CONFIGURED } from '@documenso/lib/constants/app';
 import { DocumentSignatureType } from '@documenso/lib/constants/document';
 import { AppError } from '@documenso/lib/errors/app-error';
@@ -6,6 +7,7 @@ import { trpc } from '@documenso/trpc/react';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
+import { OrganisationType } from '@prisma/client';
 import { Loader } from 'lucide-react';
 import { useLoaderData } from 'react-router';
 
@@ -31,6 +33,7 @@ export default function TeamsSettingsPage() {
   const { isAiFeaturesConfigured } = useLoaderData<typeof loader>();
 
   const team = useCurrentTeam();
+  const organisation = useCurrentOrganisation();
 
   const { t } = useLingui();
   const { toast } = useToast();
@@ -69,7 +72,9 @@ export default function TeamsSettingsPage() {
           documentLanguage,
           documentTimezone,
           documentDateFormat,
-          includeSenderDetails,
+          // Personal teams cannot edit this hidden preference. Omit it so an
+          // inherited value does not block updates to unrelated settings.
+          ...(organisation.type === OrganisationType.PERSONAL ? {} : { includeSenderDetails }),
           includeSigningCertificate,
           includeAuditLog,
           defaultRecipients,
